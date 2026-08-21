@@ -1,0 +1,44 @@
+# Données sources (~110 Mo) — provenance documentée dans le README
+data/
+portfolio/
+
+
+# Données dérivées, régénérables par les notebooks.
+#
+# `notebooks/df.csv` fait exception et EST versionné (1,3 Mo) : c'est le dataset consolidé
+# que l'Étape 1 du brief demande de livrer — « ce fichier unique sera la source de vérité
+# pour les étapes suivantes ». Sa présence fait aussi tourner en CI le test qui aligne les
+# dix libellés de culture sur le jeu d'entraînement, jusqu'ici désactivé faute de fichier.
+*.parquet
+
+# MLflow — magasin de suivi et artefacts des runs, régénérés par le notebook.
+# mlartifacts/ pesait 425 Mo sur 546 fichiers et était suivi par git faute de figurer ici :
+# un .gitignore n'a aucun effet sur ce qui est déjà indexé. Retiré du suivi par
+# `git rm -r --cached mlartifacts`. Ce qui doit survivre à l'entraînement, ce sont les
+# captures MLflow du rapport et models/model_B.joblib, pas ce magasin local.
+mlruns/
+mlartifacts/
+mlflow.db
+
+# Logs d'entraînement CatBoost
+catboost_info/
+
+# Documents de travail et sorties intermédiaires : ils appartiennent au dossier de rendu
+# OpenClassrooms, pas au dépôt de code. Le README porte à lui seul ce qu'un lecteur du
+# dépôt doit savoir.
+brief/
+.claude/
+figures/
+livrables/
+
+# models/model_B.joblib est VOLONTAIREMENT versionné (217 Ko) : c'est ce que le Dockerfile
+# copie dans l'image. Sans lui dans le dépôt, un `docker build` sur un runner GitHub n'a
+# rien à embarquer et l'API ne démarre pas. Le tirer de MLflow au build supposerait un
+# serveur joignable depuis le runner — de la complexité pour aucun bénéfice à cette taille.
+# La traçabilité reste portée par le registre MLflow (alias @champion), pas par git.
+
+# Environnement Python
+.venv/
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
