@@ -24,8 +24,10 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
+      # setup-uv ne publie plus de tag majeur flottant au-dela de v7 :
+      # la version doit etre epinglee exactement.
       - name: Install uv
-        uses: astral-sh/setup-uv@v8
+        uses: astral-sh/setup-uv@v10.0.1
 
       # Deliberately installed from requirements.txt rather than uv.lock: that
       # is the exact stack the Space will run, so the suite validates the
