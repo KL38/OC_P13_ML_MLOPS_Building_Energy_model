@@ -60,8 +60,29 @@ jobs:
           pip install --quiet huggingface_hub
           python - <<'EOF'
           import os
+          import sys
 
           from huggingface_hub import HfApi
+
+          # Un secret GitHub absent ne leve pas d'erreur : il se substitue en
+          # chaine vide, et le Hub repond alors 401 sans dire pourquoi. On
+          # tranche ici entre "secret manquant" et "droits insuffisants".
+          jeton = os.environ.get("HF_TOKEN", "").strip()
+          if not jeton:
+              sys.exit(
+                  "HF_TOKEN est vide ou absent. Ajoutez-le dans Settings > "
+                  "Secrets and variables > Actions du depot GitHub."
+              )
+
+          api = HfApi(token=jeton)
+          try:
+              identite = api.whoami()
+          except Exception as erreur:
+              sys.exit(f"HF_TOKEN refuse par le Hub : {erreur}")
+
+          permissions = (identite.get("auth") or {}).get("accessToken") or {}
+          print(f"Authentifie comme {identite.get('name')} "
+                f"(role du jeton : {permissions.get('role', 'inconnu')})")
 
           # fnmatch semantics: `*` also matches `/`, so `dossier/*` covers the
           # whole subtree. Only what the app needs at runtime is uploaded --
@@ -83,7 +104,7 @@ jobs:
               "uv.lock", "pyproject.toml",
           ]
 
-          HfApi(token=os.environ["HF_TOKEN"]).upload_folder(
+          api.upload_folder(
               folder_path=".",
               repo_id=os.environ["SPACE_ID"],
               repo_type="space",
