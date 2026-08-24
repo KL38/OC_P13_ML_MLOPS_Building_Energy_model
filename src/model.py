@@ -57,7 +57,17 @@ def predict(X: pd.DataFrame) -> pd.DataFrame:
     for target, model in models.items():
         y_log, intervals = model.predict_interval(X)
         out[f"{target}_estimation"] = np.expm1(y_log)
-        out[f"{target}_bas"] = np.expm1(intervals[:, 0, 0])
+        # Clamped at zero. On a very small target, log1p(y) is close to 0 and
+        # subtracting the conformity quantile pushes the lower bound negative --
+        # one building of the 1655 lands at -0.13 tCO2e.
+        #
+        # This costs no coverage *within the model's domain*, which the EDA
+        # restricts to strictly positive consumption: the one Seattle building
+        # that exports more electricity than it draws, the Bullitt Center
+        # (49784, -115 417 kBtu, -0.8 tCO2e), is removed there as a lone case.
+        # A net-positive building is therefore out of domain, and no target the
+        # model was fitted on can be negative.
+        out[f"{target}_bas"] = np.expm1(intervals[:, 0, 0]).clip(min=0.0)
         out[f"{target}_haut"] = np.expm1(intervals[:, 1, 0])
 
     return out

@@ -1,0 +1,426 @@
+/* ==========================================================================
+   Estimation énergétique — Seattle
+   Feuille de style de l'application Gradio.
+
+   Palette : les deux cibles reçoivent les deux premiers créneaux catégoriels
+   de la palette de référence — énergie en bleu, émissions en orange. Le couple
+   a été validé par `scripts/validate_palette.js` du skill dataviz : tous les
+   contrôles passent en clair comme en sombre (séparation CVD ΔE 24,7 / 26,8
+   pour un seuil à 8, contraste ≥ 3:1 sur les deux surfaces).
+
+   Le chrome de l'interface reste neutre : un bouton orange impersonnerait la
+   série « émissions ». La couleur est réservée à la donnée.
+   ========================================================================== */
+
+.oc {
+  --oc-energie: #2a78d6;
+  --oc-emissions: #eb6834;
+
+  --oc-ink: #0b0b0b;
+  --oc-ink-2: #52514e;
+  --oc-muted: #898781;
+
+  --oc-surface: #fcfcfb;
+  --oc-soft: rgba(11, 11, 11, 0.035);
+  --oc-line: rgba(11, 11, 11, 0.12);
+  --oc-track: rgba(11, 11, 11, 0.09);
+
+  --oc-radius: 12px;
+  --oc-radius-sm: 6px;
+
+  color: var(--oc-ink);
+  font-size: 1rem;
+  line-height: 1.45;
+}
+
+@media (prefers-color-scheme: dark) {
+  .oc {
+    --oc-energie: #3987e5;
+    --oc-emissions: #d95926;
+    --oc-ink: #ffffff;
+    --oc-ink-2: #c3c2b7;
+    --oc-muted: #898781;
+    --oc-surface: #1a1a19;
+    --oc-soft: rgba(255, 255, 255, 0.04);
+    --oc-line: rgba(255, 255, 255, 0.13);
+    --oc-track: rgba(255, 255, 255, 0.11);
+  }
+}
+
+/* Gradio stamps `.dark` on an ancestor when the viewer toggles the theme, so
+   the same values are declared again here to win over the OS media query. */
+.dark .oc {
+  --oc-energie: #3987e5;
+  --oc-emissions: #d95926;
+  --oc-ink: #ffffff;
+  --oc-ink-2: #c3c2b7;
+  --oc-muted: #898781;
+  --oc-surface: #1a1a19;
+  --oc-soft: rgba(255, 255, 255, 0.04);
+  --oc-line: rgba(255, 255, 255, 0.13);
+  --oc-track: rgba(255, 255, 255, 0.11);
+}
+
+/* One series colour per block, set by a modifier. Everything inside then
+   refers to `--oc-serie` and needs no knowledge of which target it serves. */
+.oc--energie {
+  --oc-serie: var(--oc-energie);
+}
+.oc--emissions {
+  --oc-serie: var(--oc-emissions);
+}
+
+/* --------------------------------------------------------------- Résultat */
+
+.oc-result {
+  border: 1px solid var(--oc-line);
+  border-left: 3px solid var(--oc-serie);
+  border-radius: var(--oc-radius);
+  background: var(--oc-soft);
+  padding: 20px 22px 18px;
+}
+
+.oc-result__label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--oc-ink-2);
+  margin-bottom: 10px;
+}
+
+/* The dominant element of the page. Proportional figures, not tabular:
+   `tabular-nums` gives every digit the width of a zero, which reads loose at
+   display sizes and is only wanted in columns that must align. */
+.oc-result__value {
+  font-size: 2.35rem;
+  font-weight: 640;
+  line-height: 1.05;
+  letter-spacing: -0.015em;
+}
+
+.oc-result__unit {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--oc-ink-2);
+  margin-left: 7px;
+}
+
+.oc-result__note {
+  font-size: 0.84rem;
+  color: var(--oc-ink-2);
+  margin-top: 14px;
+}
+
+.oc-info {
+  cursor: help;
+  border-bottom: 1px dotted currentColor;
+  opacity: 0.75;
+}
+
+/* ------------------------------------------------------------- Fourchette */
+
+.oc-gauge {
+  margin-top: 16px;
+}
+
+.oc-gauge__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.78rem;
+  color: var(--oc-ink-2);
+  margin-bottom: 7px;
+}
+
+.oc-pill {
+  border: 1px solid var(--oc-line);
+  border-radius: 999px;
+  padding: 2px 9px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--oc-ink-2);
+  white-space: nowrap;
+}
+
+.oc-gauge__track {
+  position: relative;
+  height: 10px;
+  border-radius: var(--oc-radius-sm);
+  background: var(--oc-track);
+  overflow: hidden;
+}
+
+.oc-gauge__span {
+  position: absolute;
+  inset: 0;
+  background: var(--oc-serie);
+  opacity: 0.28;
+}
+
+/* The estimate is centred in log space, so in linear units it sits well left
+   of the middle. The marker is placed at its true position rather than faked
+   to the centre. */
+.oc-gauge__marker {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--oc-serie);
+  transform: translateX(-50%);
+}
+
+.oc-gauge__ends {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.76rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--oc-muted);
+  margin-top: 6px;
+}
+
+/* ------------------------------------------------------- Barres de facteur */
+
+.oc-bars__title {
+  font-size: 0.88rem;
+  font-weight: 600;
+  margin-bottom: 14px;
+}
+
+.oc-bar {
+  display: flex;
+  align-items: center;
+  margin-bottom: 9px;
+}
+
+.oc-bar__label {
+  flex: 0 0 38%;
+  padding-right: 14px;
+  text-align: right;
+  font-size: 0.84rem;
+  color: var(--oc-ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.oc-bar__plot {
+  flex: 1;
+  position: relative;
+  height: 22px;
+}
+
+.oc-bar__axis {
+  position: absolute;
+  left: 50%;
+  top: -1px;
+  bottom: -1px;
+  width: 1px;
+  background: var(--oc-line);
+}
+
+/* 4px rounded data-ends, anchored flat against the baseline they grow from. */
+.oc-bar__fill {
+  position: absolute;
+  top: 3px;
+  height: 16px;
+  background: var(--oc-serie);
+}
+.oc-bar__fill--up {
+  left: 50%;
+  border-radius: 0 4px 4px 0;
+}
+.oc-bar__fill--down {
+  right: 50%;
+  border-radius: 4px 0 0 4px;
+  opacity: 0.45;
+}
+
+.oc-bar__value {
+  position: absolute;
+  top: 3px;
+  height: 16px;
+  line-height: 16px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--oc-ink-2);
+  white-space: nowrap;
+}
+
+.oc-scale {
+  display: flex;
+  align-items: center;
+  margin-top: 3px;
+}
+.oc-scale__gutter {
+  flex: 0 0 38%;
+}
+.oc-scale__ticks {
+  flex: 1;
+  position: relative;
+  height: 15px;
+  font-size: 0.72rem;
+  color: var(--oc-muted);
+}
+.oc-scale__ticks span {
+  position: absolute;
+  transform: translateX(-50%);
+}
+
+/* ------------------------------------------------- Synthèse de portefeuille */
+
+.oc-kpis {
+  display: flex;
+  gap: 11px;
+  flex-wrap: wrap;
+}
+
+.oc-kpi {
+  flex: 1 1 145px;
+  border: 1px solid var(--oc-line);
+  border-radius: var(--oc-radius);
+  background: var(--oc-soft);
+  padding: 13px 15px;
+}
+
+.oc-kpi__label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--oc-muted);
+  margin-bottom: 5px;
+}
+
+.oc-kpi__value {
+  font-size: 1.45rem;
+  font-weight: 640;
+  line-height: 1.15;
+}
+
+.oc-kpi__unit {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--oc-ink-2);
+  margin-left: 5px;
+}
+
+.oc-panel {
+  border: 1px solid var(--oc-line);
+  border-radius: var(--oc-radius);
+  background: var(--oc-soft);
+  padding: 16px 18px;
+  margin-top: 13px;
+}
+
+.oc-panel__title {
+  font-size: 0.86rem;
+  color: var(--oc-ink-2);
+  margin-bottom: 12px;
+}
+
+.oc-panel__note {
+  font-size: 0.74rem;
+  color: var(--oc-muted);
+  margin-top: 8px;
+}
+
+/* A 2px surface gap between segments keeps adjacent fills readable without a
+   stroke, which is the spacer rule for stacked marks. */
+.oc-pareto {
+  display: flex;
+  height: 16px;
+  border-radius: 8px;
+  overflow: hidden;
+  gap: 2px;
+}
+
+.oc-pareto__seg {
+  background: var(--oc-emissions);
+}
+.oc-pareto__seg--rest {
+  background: var(--oc-track);
+}
+
+.oc-share {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin-bottom: 8px;
+}
+
+.oc-share__label {
+  flex: 0 0 42%;
+  text-align: right;
+  font-size: 0.84rem;
+  color: var(--oc-ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.oc-share__track {
+  flex: 1;
+  height: 9px;
+  border-radius: 5px;
+  background: var(--oc-track);
+  overflow: hidden;
+}
+
+.oc-share__fill {
+  height: 100%;
+  border-radius: 5px;
+  background: var(--oc-emissions);
+}
+
+.oc-share__value {
+  flex: 0 0 46px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--oc-ink-2);
+}
+
+/* ------------------------------------------------------------ Mise en page */
+
+/* Gradio wraps every component; these only nudge the shell, they do not
+   restyle its internals -- overriding Gradio's own classes would break on the
+   next minor version. */
+#oc-estimer {
+  margin-top: 6px;
+}
+
+.oc-section {
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--oc-muted);
+}
+
+/* ----------------------------------------------------------- Action verte */
+
+/* Le vert est la couleur de statut « good » de la palette de reference. Il est
+   sans risque ici : aucune donnee de cette application n'est verte -- les deux
+   series sont bleue et orange -- donc le bouton ne peut pas se faire passer
+   pour une serie.
+
+   #008300 sous du texte blanc mesure 4,95:1, au-dessus du plancher AA de 4,5,
+   et la teinte est identique en clair et en sombre dans la palette.
+
+   `!important` cible une classe qui nous appartient (`oc-cta`, posee via
+   elem_classes) et non une classe interne de Gradio : c'est le point
+   d'accroche prevu, et la surcharge ne casse pas a la montee de version. */
+.oc-cta,
+.oc-cta button {
+  background: #008300 !important;
+  border-color: #008300 !important;
+  color: #ffffff !important;
+}
+
+.oc-cta:hover,
+.oc-cta button:hover {
+  background: #006b00 !important;
+  border-color: #006b00 !important;
+}

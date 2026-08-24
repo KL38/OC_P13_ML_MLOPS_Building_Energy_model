@@ -1,0 +1,91 @@
+name: CI_CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch: {}
+
+env:
+  # ZeroGPU accepts 3.12.12 or 3.10.13 only; the Space README declares 3.12.12.
+  PYTHON_VERSION: "3.12"
+  SPACE_ID: KLEB38/OC_P13_seattle_energy_emission_predictions
+
+jobs:
+  build_and_test:
+    name: Lint & tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8
+
+      # Deliberately installed from requirements.txt rather than uv.lock: that
+      # is the exact stack the Space will run, so the suite validates the
+      # artefacts against their serving environment. It also keeps CI off the
+      # training-only dependencies -- tabpfn alone drags in torch.
+      - name: Install the serving stack
+        run: |
+          uv venv
+          uv pip install -r requirements.txt pytest ruff
+
+      - name: Lint
+        run: uv run ruff check app.py src tests
+
+      - name: Tests
+        run: uv run pytest
+
+  deploy:
+    name: Deploy to Hugging Face Space
+    needs: build_and_test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Push to the Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          SPACE_ID: ${{ env.SPACE_ID }}
+        run: |
+          pip install --quiet huggingface_hub
+          python - <<'EOF'
+          import os
+
+          from huggingface_hub import HfApi
+
+          # fnmatch semantics: `*` also matches `/`, so `dossier/*` covers the
+          # whole subtree. Only what the app needs at runtime is uploaded --
+          # notebooks, the training data and the MLflow store stay on GitHub.
+          IGNORER = [
+              ".git", ".git/*",
+              ".github", ".github/*",
+              ".venv", ".venv/*",
+              ".claude", ".claude/*", "CLAUDE.md",
+              ".ruff_cache/*", ".pytest_cache/*", ".vscode/*",
+              "__pycache__/*", "*.pyc",
+              "brief/*", "portfolio/*", "notebooks/*",
+              "mlruns/*", "mlartifacts/*", "mlflow.db",
+              "catboost_info/*",
+              "emissions.csv", "emissions_base_*.csv",
+              ".tabpfn_token",
+              "tests/*",
+              "data/2016.csv", "data/dfclean.csv",
+              "uv.lock", "pyproject.toml",
+          ]
+
+          HfApi(token=os.environ["HF_TOKEN"]).upload_folder(
+              folder_path=".",
+              repo_id=os.environ["SPACE_ID"],
+              repo_type="space",
+              ignore_patterns=IGNORER,
+              commit_message="Déploiement depuis GitHub Actions",
+          )
+          EOF

@@ -1,9 +1,18 @@
 """Gradio app -- energy and emissions estimates for a Seattle building.
 
 Three tabs: one building typed into a form, a portfolio uploaded as CSV, and a
-page stating plainly what the model can and cannot do. Every estimate is shown
-with its interval: a point value alone would hide an uncertainty the data cannot
-remove (see docs/plafond_de_performance.md).
+page stating plainly what the model can and cannot do.
+
+Presentation rules, all enforced in static/app.css rather than inline:
+
+- Energy takes categorical slot 1 (blue), emissions slot 2 (orange), and keeps
+  that identity across every block. UI chrome stays neutral so a button never
+  impersonates a series.
+- Each estimate leads with its value and carries a gauge of its interval. The
+  marker sits at the estimate's true position inside the range, which is left of
+  centre: the interval is symmetric in log space, not in kBtu.
+- The coverage figures live in the "model and limits" tab, where they can be
+  explained instead of asserted.
 """
 
 from __future__ import annotations
@@ -18,6 +27,8 @@ import pandas as pd
 from src import features as F
 from src import model as M
 
+RACINE = Path(__file__).resolve().parent
+
 MODELS, META = M.load()
 CONFIDENCE = META["confidence_level"]
 USAGE_TYPES = sorted(F.USAGE_MAP)
@@ -27,6 +38,38 @@ SUJET_FOURCHETTE = {
     "energie": "la vraie consommation se situe",
     "emissions": "les vraies émissions se situent",
 }
+
+# Plausibility bounds. Anything outside is a typing mistake rather than a
+# building, and is refused with a message naming the offending field.
+#
+# Each message is written out instead of templated: French agreement differs
+# between fields ("comprise" / "compris"), and a year must not carry thousands
+# separators the way a surface does -- hence the trailing flag.
+CONTROLES: dict[str, tuple[int, int, str, bool]] = {
+    "annee": (
+        1850,
+        2016,
+        "L'année de construction doit être comprise entre 1850 et 2016",
+        False,
+    ),
+    "etages": (1, 120, "Le nombre d'étages doit être compris entre 1 et 120", False),
+    "batiments": (
+        1,
+        100,
+        "Le nombre de bâtiments doit être compris entre 1 et 100",
+        False,
+    ),
+    "surface": (
+        500,
+        10_000_000,
+        "La surface totale doit être comprise entre 500 et 10 000 000 pieds carrés",
+        True,
+    ),
+}
+
+# Beyond this the building is outside the range the model was fitted on. Not an
+# error -- the estimate is still produced -- but the user is told.
+SURFACE_HORS_DOMAINE = 2_000_000
 
 # Columns a portfolio CSV must carry: the neutral description, not meter
 # readings. Consumption columns are deliberately absent -- their sum is the
@@ -44,10 +87,33 @@ PORTFOLIO_COLUMNS = [
     *(c for pair in F.USAGE_SLOTS for c in pair),
 ]
 
+# The 32 features, folded into the five things a building owner would name.
+# SHAP contributions are additive, so summing within a group is exact.
+GROUPES_EXPLICATION: dict[str, tuple[str, ...]] = {
+    "Surface et volumétrie": ("logGFAtotal", "NumberofFloors", "NumberofBuildings"),
+    "Usages du bâtiment": (*F.USAGE_GROUPS, "NbUsage"),
+    "Sources d'énergie": ("HasElectricity", "HasGas", "HasSteam"),
+    "Quartier": tuple(c for c in F.FEATURE_COLUMNS if c.startswith("nb_")),
+    "Année de construction": ("YearBuilt",),
+}
+
+# Every feature must land in exactly one group, or the explanation silently
+# drops part of the prediction.
+assert sorted(c for cols in GROUPES_EXPLICATION.values() for c in cols) == sorted(
+    F.FEATURE_COLUMNS
+)
+
+
+# --------------------------------------------------------------- formatting
+
 
 def _fr(value: float, decimals: int = 0) -> str:
     """Number with space thousands separators, French convention."""
     return f"{value:,.{decimals}f}".replace(",", " ").replace(".", ",")
+
+
+def _decimales(target: str) -> int:
+    return 0 if target == "energie" else 1
 
 
 def _total_parts(part1, part2, part3) -> str:
@@ -58,13 +124,16 @@ def _total_parts(part1, part2, part3) -> str:
     return f"**Total : {total:.0f} %** — les parts doivent totaliser 100 %."
 
 
-def _infobulle(target: str) -> str:
-    """Hover detail on the interval sentence: what the estimate is good for.
+def _facteur(effet_log: float) -> str:
+    """A log contribution said as a multiplier, the way a reader would say it."""
+    facteur = float(np.exp(abs(effet_log)))
+    if facteur < 1.05:
+        return "sans effet"
+    return f"×{_fr(facteur, 1)}" if effet_log > 0 else f"÷{_fr(facteur, 1)}"
 
-    Deliberately not a method sheet -- MAPIE, CV+ and the coverage figures live
-    in the "model and limits" tab. What a reader needs at the point of reading a
-    number is why it moves and what to do with it.
-    """
+
+def _infobulle(target: str) -> str:
+    """Hover detail on the interval sentence: what the estimate is good for."""
     verbe = "émettre" if target == "emissions" else "consommer"
     lignes = (
         (
@@ -86,55 +155,42 @@ def _infobulle(target: str) -> str:
     return "&#10;".join(lignes)
 
 
-def _card(target: str, row: pd.Series) -> str:
-    """One result block: the estimate, the likely range, what the range means."""
-    unit = M.UNITS[target]
-    decimals = 0 if target == "energie" else 1
+# ------------------------------------------------------------ result blocks
+
+
+def _html_resultat(target: str, row: pd.Series) -> str:
+    """The estimate, then a gauge placing it inside its interval.
+
+    A bare pair of bounds asks the reader to do the arithmetic. The gauge shows
+    the span at a glance and puts the marker where the estimate actually falls
+    -- about a third of the way in, because the interval is symmetric in log
+    space and therefore lopsided in kBtu.
+    """
+    decimales = _decimales(target)
+    estimation = row[f"{target}_estimation"]
+    bas, haut = row[f"{target}_bas"], row[f"{target}_haut"]
+    position = (estimation - bas) / (haut - bas) * 100.0
+    facteur = (estimation / bas + haut / estimation) / 2.0
 
     return (
-        f"### {M.LABELS[target]}\n\n"
-        f"# {_fr(row[f'{target}_estimation'], decimals)} {unit}\n\n"
-        f"**Fourchette probable : {_fr(row[f'{target}_bas'], decimals)} – "
-        f"{_fr(row[f'{target}_haut'], decimals)} {unit}**\n\n"
-        f"Notre modèle est confiant à {CONFIDENCE * 100:.0f} % que "
-        f"{SUJET_FOURCHETTE[target]} dans cette fourchette. "
-        f'<span title="{_infobulle(target)}" '
-        f'style="cursor:help;border-bottom:1px dotted currentColor;opacity:.7;">'
-        f"&#9432;</span>"
+        f'<div class="oc oc--{target}">'
+        '<div class="oc-result">'
+        f'<div class="oc-result__label">{M.LABELS[target]}</div>'
+        f'<div class="oc-result__value">{_fr(estimation, decimales)}'
+        f'<span class="oc-result__unit">{M.UNITS[target]}</span></div>'
+        '<div class="oc-gauge">'
+        '<div class="oc-gauge__head"><span>Fourchette probable</span>'
+        f'<span class="oc-pill">à un facteur {_fr(facteur, 1)} près</span></div>'
+        '<div class="oc-gauge__track"><div class="oc-gauge__span"></div>'
+        f'<div class="oc-gauge__marker" style="left:{position:.2f}%"></div></div>'
+        f'<div class="oc-gauge__ends"><span>{_fr(bas, decimales)}</span>'
+        f"<span>{_fr(haut, decimales)}</span></div></div>"
+        f'<div class="oc-result__note">Notre modèle est confiant à '
+        f"{CONFIDENCE * 100:.0f} % que {SUJET_FOURCHETTE[target]} dans cette "
+        f'fourchette. <span class="oc-info" title="{_infobulle(target)}">'
+        "&#9432;</span></div>"
+        "</div></div>"
     )
-
-
-# The 32 features, folded into the five things a building owner would name.
-# SHAP contributions are additive, so summing within a group is exact.
-GROUPES_EXPLICATION: dict[str, tuple[str, ...]] = {
-    "Surface et volumétrie": ("logGFAtotal", "NumberofFloors", "NumberofBuildings"),
-    "Usages du bâtiment": (*F.USAGE_GROUPS, "NbUsage"),
-    "Sources d'énergie": ("HasElectricity", "HasGas", "HasSteam"),
-    "Quartier": tuple(c for c in F.FEATURE_COLUMNS if c.startswith("nb_")),
-    "Année de construction": ("YearBuilt",),
-}
-
-# Every feature must land in exactly one group, or the explanation silently
-# drops part of the prediction.
-assert sorted(c for cols in GROUPES_EXPLICATION.values() for c in cols) == sorted(
-    F.FEATURE_COLUMNS
-)
-
-# Bars take the app's own accent when they push the estimate up, and a muted
-# tint of the current text colour when they pull it down. Both follow the theme,
-# so nothing has to be re-picked for light or dark.
-TEINTE_HAUSSE = "var(--color-accent, #f97316)"
-TEINTE_BAISSE = "currentColor"
-
-LARGEUR_LIBELLE = "38%"
-
-
-def _facteur(effet_log: float) -> str:
-    """A log contribution said as a multiplier, the way a reader would say it."""
-    facteur = float(np.exp(abs(effet_log)))
-    if facteur < 1.05:
-        return "sans effet"
-    return f"×{_fr(facteur, 1)}" if effet_log > 0 else f"÷{_fr(facteur, 1)}"
 
 
 def _html_facteurs(x: pd.DataFrame, target: str) -> str:
@@ -144,12 +200,7 @@ def _html_facteurs(x: pd.DataFrame, target: str) -> str:
     so a sum in log space is a product in business units: each contribution *is*
     a multiplier. The log1p rather than log leaves a residual -- negligible on
     energy, about 1% on emissions -- and the reference point is the geometric
-    mean of predictions, which is why it is labelled "référence" and not
-    "moyenne".
-
-    Emitted as HTML rather than a matplotlib image: it stays crisp at any zoom
-    and inherits the theme, where a raster figure carried its own white
-    background and palette into a dark interface.
+    mean of predictions, which is why it is labelled "référence".
     """
     _, values = M.explain(x, target)
     contributions = pd.Series(values, index=x.columns)
@@ -161,72 +212,67 @@ def _html_facteurs(x: pd.DataFrame, target: str) -> str:
     ordre = sorted(effets, key=lambda nom: -abs(effets[nom]))
     limite = max(max(abs(v) for v in effets.values()), float(np.log(1.3))) * 1.18
 
-    morceaux = [
-        '<div style="font-size:1rem;line-height:1.4;padding:2px 0;">',
-        (
-            '<div style="font-size:.9em;font-weight:600;opacity:.9;'
-            f'margin:0 0 12px 0;">{M.LABELS[target]}</div>'
-        ),
-    ]
-
+    barres = []
     for nom in ordre:
         effet = effets[nom]
         part = abs(effet) / limite * 50.0
-        hausse = effet > 0
-        barre = (
-            f"left:50%;width:{part:.2f}%;background:{TEINTE_HAUSSE};"
-            if hausse
-            else f"right:50%;width:{part:.2f}%;background:{TEINTE_BAISSE};opacity:.38;"
-        )
-        etiquette = (
-            f"left:calc(50% + {part:.2f}% + 9px);"
-            if hausse
-            else f"right:calc(50% + {part:.2f}% + 9px);"
-        )
-        morceaux.append(
-            '<div style="display:flex;align-items:center;margin:0 0 9px 0;">'
-            f'<div style="flex:0 0 {LARGEUR_LIBELLE};padding-right:14px;'
-            'text-align:right;font-size:.86em;opacity:.85;">'
-            f"{nom}</div>"
-            '<div style="flex:1;position:relative;height:22px;">'
-            '<div style="position:absolute;left:50%;top:-1px;bottom:-1px;width:1px;'
-            'background:currentColor;opacity:.25;"></div>'
-            f'<div style="position:absolute;top:3px;height:16px;border-radius:3px;'
-            f'{barre}"></div>'
-            f'<div style="position:absolute;top:3px;height:16px;line-height:16px;'
-            f'font-size:.8em;font-weight:600;white-space:nowrap;opacity:.9;'
-            f'{etiquette}">{_facteur(effet)}</div>'
+        sens = "up" if effet > 0 else "down"
+        cote = "left" if effet > 0 else "right"
+        barres.append(
+            '<div class="oc-bar">'
+            f'<div class="oc-bar__label">{nom}</div>'
+            '<div class="oc-bar__plot"><div class="oc-bar__axis"></div>'
+            f'<div class="oc-bar__fill oc-bar__fill--{sens}" '
+            f'style="width:{part:.2f}%"></div>'
+            f'<div class="oc-bar__value" '
+            f'style="{cote}:calc(50% + {part:.2f}% + 9px)">{_facteur(effet)}</div>'
             "</div></div>"
         )
 
     graduations = [
         f for f in (1.5, 2, 3, 5, 10, 20) if limite * 0.18 < np.log(f) < limite * 0.94
     ]
-    echelle = [
-        (
-            '<span style="position:absolute;left:50%;transform:translateX(-50%);">'
-            "référence</span>"
-        )
-    ]
+    ticks = ['<span style="left:50%">référence</span>']
     for f in graduations:
         offset = float(np.log(f)) / limite * 50.0
-        echelle.append(
-            f'<span style="position:absolute;left:{50 + offset:.2f}%;'
-            f'transform:translateX(-50%);">×{f:g}</span>'
-        )
-        echelle.append(
-            f'<span style="position:absolute;left:{50 - offset:.2f}%;'
-            f'transform:translateX(-50%);">÷{f:g}</span>'
-        )
+        ticks.append(f'<span style="left:{50 + offset:.2f}%">×{f:g}</span>')
+        ticks.append(f'<span style="left:{50 - offset:.2f}%">÷{f:g}</span>')
 
-    morceaux.append(
-        '<div style="display:flex;align-items:center;margin-top:2px;">'
-        f'<div style="flex:0 0 {LARGEUR_LIBELLE};"></div>'
-        '<div style="flex:1;position:relative;height:15px;font-size:.72em;'
-        'opacity:.55;">' + "".join(echelle) + "</div></div>"
+    return (
+        f'<div class="oc oc--{target}">'
+        f'<div class="oc-bars__title">{M.LABELS[target]}</div>'
+        + "".join(barres)
+        + '<div class="oc-scale"><div class="oc-scale__gutter"></div>'
+        f'<div class="oc-scale__ticks">{"".join(ticks)}</div></div></div>'
     )
-    morceaux.append("</div>")
-    return "".join(morceaux)
+
+
+# ------------------------------------------------------- single building tab
+
+
+def _valider(annee, nb_batiments, nb_etages, surface) -> None:
+    """Refuse impossible inputs, warn on ones merely outside the training range."""
+    saisies = (
+        ("annee", annee),
+        ("etages", nb_etages),
+        ("batiments", nb_batiments),
+        ("surface", surface),
+    )
+    for cle, valeur in saisies:
+        mini, maxi, message, separateur = CONTROLES[cle]
+        if valeur is None:
+            raise gr.Error(f"{message} — champ non renseigné.")
+        nombre = float(valeur)
+        if not mini <= nombre <= maxi:
+            saisie = _fr(nombre) if separateur else f"{nombre:.0f}"
+            raise gr.Error(f"{message} — valeur saisie : {saisie}.")
+
+    if float(surface) > SURFACE_HORS_DOMAINE:
+        gr.Warning(
+            "Cette surface dépasse celles du parc de Seattle sur lequel le modèle "
+            "a été entraîné. L'estimation reste produite, mais sa fiabilité n'est "
+            "plus garantie."
+        )
 
 
 def estimer(
@@ -246,7 +292,9 @@ def estimer(
     gaz,
     vapeur,
 ):
-    """Form -> two result cards and two SHAP figures."""
+    """Form -> two result blocks and two factor charts."""
+    _valider(annee, nb_batiments, nb_etages, surface)
+
     usages = [
         (use, share)
         for use, share in ((usage1, part1), (usage2, part2), (usage3, part3))
@@ -284,28 +332,23 @@ def estimer(
     row = M.predict(x).iloc[0]
 
     return (
-        _card("energie", row),
-        _card("emissions", row),
+        _html_resultat("energie", row),
+        _html_resultat("emissions", row),
         _html_facteurs(x, "energie"),
         _html_facteurs(x, "emissions"),
+        gr.update(visible=True),
     )
 
 
-BORDURE = "color-mix(in srgb, currentColor 16%, transparent)"
-FOND_DOUX = "color-mix(in srgb, currentColor 5%, transparent)"
-TEINTE_MUETTE = "color-mix(in srgb, currentColor 22%, transparent)"
+# ------------------------------------------------------------ portfolio tab
 
 
 def _carte_kpi(libelle: str, valeur: str, unite: str) -> str:
-    """One headline figure in a bordered tile."""
     return (
-        f'<div style="flex:1 1 140px;border:1px solid {BORDURE};border-radius:10px;'
-        f'background:{FOND_DOUX};padding:13px 15px;">'
-        f'<div style="font-size:.72em;text-transform:uppercase;letter-spacing:.05em;'
-        f'opacity:.6;margin-bottom:5px;">{libelle}</div>'
-        f'<div style="font-size:1.45em;font-weight:650;line-height:1.15;">{valeur}'
-        f'<span style="font-size:.55em;font-weight:500;opacity:.65;margin-left:5px;">'
-        f"{unite}</span></div></div>"
+        '<div class="oc-kpi">'
+        f'<div class="oc-kpi__label">{libelle}</div>'
+        f'<div class="oc-kpi__value">{valeur}'
+        f'<span class="oc-kpi__unit">{unite}</span></div></div>'
     )
 
 
@@ -338,9 +381,9 @@ def _html_synthese(result: pd.DataFrame) -> str:
 
     segments = "".join(
         [
-            f'<div style="width:{part * 100:.3f}%;background:'
-            + (f"{TEINTE_MUETTE};" if rang >= seuil else "var(--color-accent, #f97316);")
-            + '"></div>'
+            '<div class="oc-pareto__seg'
+            + ("" if rang < seuil else " oc-pareto__seg--rest")
+            + f'" style="width:{part * 100:.3f}%"></div>'
             for rang, part in enumerate(parts)
         ]
     )
@@ -354,47 +397,47 @@ def _html_synthese(result: pd.DataFrame) -> str:
     plus_grand = float(usages.iloc[0])
     lignes_usage = "".join(
         [
-            '<div style="display:flex;align-items:center;gap:10px;margin-bottom:7px;">'
-            f'<div style="flex:0 0 42%;font-size:.84em;opacity:.85;text-align:right;'
-            f'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{nom}</div>'
-            '<div style="flex:1;height:9px;border-radius:5px;background:'
-            f'{TEINTE_MUETTE};overflow:hidden;">'
-            f'<div style="width:{valeur / plus_grand * 100:.2f}%;height:100%;'
-            'background:var(--color-accent, #f97316);border-radius:5px;"></div></div>'
-            f'<div style="flex:0 0 46px;font-size:.78em;font-weight:600;opacity:.8;">'
-            f"{valeur / emissions * 100:.0f} %</div></div>"
-            for nom, valeur in usages.items()
+            '<div class="oc-share">'
+            f'<div class="oc-share__label">{nom}</div>'
+            '<div class="oc-share__track">'
+            f'<div class="oc-share__fill" style="width:{v / plus_grand * 100:.2f}%">'
+            "</div></div>"
+            f'<div class="oc-share__value">{v / emissions * 100:.0f} %</div></div>'
+            for nom, v in usages.items()
         ]
     )
 
+    pluriel = "s" if seuil > 1 else ""
     return (
-        '<div style="font-size:1rem;line-height:1.45;">'
-        f'<div style="display:flex;gap:11px;flex-wrap:wrap;">{cartes}</div>'
-        f'<div style="border:1px solid {BORDURE};border-radius:10px;'
-        f'background:{FOND_DOUX};padding:15px 17px;margin-top:14px;">'
-        '<div style="font-size:.86em;opacity:.75;margin-bottom:10px;">'
-        f"<b>{seuil} bâtiment{'s' if seuil > 1 else ''} sur {nombre}</b> "
-        "concentrent la moitié des émissions estimées du parc — "
-        "ce sont eux qu'un audit doit viser en premier.</div>"
-        '<div style="display:flex;height:15px;border-radius:8px;overflow:hidden;'
-        f'gap:2px;">{segments}</div>'
-        '<div style="font-size:.72em;opacity:.5;margin-top:7px;">'
-        "Chaque segment est un bâtiment, sa largeur sa part des émissions du parc."
-        "</div></div>"
-        f'<div style="border:1px solid {BORDURE};border-radius:10px;'
-        f'background:{FOND_DOUX};padding:15px 17px;margin-top:12px;">'
-        '<div style="font-size:.86em;opacity:.75;margin-bottom:12px;">'
-        "Répartition des émissions par usage principal</div>"
+        '<div class="oc">'
+        f'<div class="oc-kpis">{cartes}</div>'
+        '<div class="oc-panel">'
+        f'<div class="oc-panel__title"><b>{seuil} bâtiment{pluriel} sur {nombre}</b> '
+        "concentrent la moitié des émissions estimées du parc — ce sont eux "
+        "qu'un audit doit viser en premier.</div>"
+        f'<div class="oc-pareto">{segments}</div>'
+        '<div class="oc-panel__note">Chaque segment est un bâtiment, sa largeur '
+        "sa part des émissions du parc.</div></div>"
+        '<div class="oc-panel">'
+        '<div class="oc-panel__title">Répartition des émissions par usage '
+        "principal</div>"
         f"{lignes_usage}</div></div>"
     )
 
 
 def traiter_portefeuille(fichier):
-    """Portfolio CSV -> table sorted by estimated emissions, plus a CSV to download."""
+    """Portfolio CSV -> table sorted by estimated emissions, export, summary."""
     if fichier is None:
-        raise gr.Error("Déposez un fichier CSV.")
+        raise gr.Error("Déposez un fichier CSV avant de lancer l'estimation.")
 
-    source = pd.read_csv(fichier.name)
+    try:
+        source = pd.read_csv(fichier.name)
+    except (pd.errors.ParserError, pd.errors.EmptyDataError, UnicodeDecodeError) as erreur:
+        raise gr.Error(f"Fichier CSV illisible : {erreur}") from None
+
+    if source.empty:
+        raise gr.Error("Le fichier ne contient aucune ligne.")
+
     missing = [c for c in PORTFOLIO_COLUMNS if c not in source.columns]
     if missing:
         raise gr.Error(f"Colonnes manquantes : {', '.join(missing)}")
@@ -403,8 +446,8 @@ def traiter_portefeuille(fichier):
     # mis-encoded -- the message names the offending value.
     try:
         X = F.build_features(source)
-    except ValueError as error:
-        raise gr.Error(str(error)) from None
+    except ValueError as erreur:
+        raise gr.Error(str(erreur)) from None
 
     result = pd.concat([source, M.predict(X)], axis=1)
     result = result.sort_values("emissions_estimation", ascending=False)
@@ -435,11 +478,13 @@ def traiter_portefeuille(fichier):
         }
     )
 
-    return apercu, str(chemin), _html_synthese(result)
+    return apercu, str(chemin), _html_synthese(result), gr.update(visible=True)
+
+
+# ----------------------------------------------------------- model & limits
 
 
 def _page_limites() -> str:
-    """The 'model and limits' tab: metrics, then what they do not promise."""
     lignes = "\n".join(
         f"| {M.LABELS[cible]} | {spec['estimateur']} | {spec['R2_log_hors_fold']:.3f} "
         f"| {spec['MedAPE_hors_fold']:.1%} | {spec['couverture_observee_test']:.1%} "
@@ -493,6 +538,9 @@ figure dans le benchmark de Seattle.
   de mesure.
 - **Remplacer un relevé.** L'estimation classe un parc et cible les audits ;
   elle ne se substitue pas à un compteur.
+- **Traiter un bâtiment à énergie positive.** Le seul cas du parc — le Bullitt
+  Center, qui réinjecte plus d'électricité qu'il n'en consomme — a été retiré du
+  jeu d'entraînement ; le modèle ne sait pas produire une valeur négative.
 
 ## Empreinte de l'entraînement
 
@@ -503,6 +551,23 @@ dans le bruit d'échantillonnage.
 """
 
 
+# ------------------------------------------------------------------ layout
+
+# Neutral chrome: Gradio's default accent is orange, which is the emissions
+# series colour. A slate primary keeps buttons legible as controls rather than
+# as data.
+# The system sans rather than Gradio's Montserrat: a geometric display face
+# reads as decoration on a measurement tool, and the system stack costs no
+# network request. Tighter radii for the same reason -- pill-shaped labels look
+# playful where this interface wants to look sober.
+THEME = gr.themes.Soft(
+    primary_hue="slate",
+    neutral_hue="slate",
+    radius_size="sm",
+    font=["system-ui", "-apple-system", "Segoe UI", "Helvetica Neue", "sans-serif"],
+    font_mono=["ui-monospace", "SFMono-Regular", "Consolas", "monospace"],
+)
+
 with gr.Blocks(title="Estimation énergétique — bâtiments de Seattle") as demo:
     gr.Markdown(
         "# Estimation énergétique d'un bâtiment\n"
@@ -512,41 +577,55 @@ with gr.Blocks(title="Estimation énergétique — bâtiments de Seattle") as de
 
     with gr.Tabs():
         with gr.Tab("Bâtiment unique"):
+            # Entry order follows how someone describes a building out loud:
+            # where and how big, then what it is used for, then how it is heated.
             with gr.Row():
                 with gr.Column():
-                    gr.Markdown("### Caractéristiques")
-                    annee = gr.Number(
-                        label="Année de construction",
-                        value=1980,
-                        minimum=1850,
-                        maximum=2016,
-                        precision=0,
-                    )
-                    surface = gr.Number(
-                        label="Surface totale (pieds carrés)", value=50000, minimum=1
-                    )
-                    nb_etages = gr.Number(
-                        label="Nombre d'étages", value=3, minimum=1, precision=0
-                    )
-                    nb_batiments = gr.Number(
-                        label="Nombre de bâtiments", value=1, minimum=1, precision=0
-                    )
+                    gr.Markdown("LE BÂTIMENT", elem_classes="oc-section")
                     quartier = gr.Dropdown(
                         label="Quartier",
                         choices=list(F.NEIGHBOURHOODS),
                         value="DOWNTOWN",
                     )
+                    surface = gr.Number(
+                        label="Surface totale (pieds carrés)",
+                        value=50000,
+                        minimum=CONTROLES["surface"][0],
+                        maximum=CONTROLES["surface"][1],
+                    )
+                    annee = gr.Number(
+                        label="Année de construction",
+                        value=1980,
+                        minimum=CONTROLES["annee"][0],
+                        maximum=CONTROLES["annee"][1],
+                        precision=0,
+                    )
+                    with gr.Row():
+                        nb_etages = gr.Number(
+                            label="Étages",
+                            value=3,
+                            minimum=CONTROLES["etages"][0],
+                            maximum=CONTROLES["etages"][1],
+                            precision=0,
+                        )
+                        nb_batiments = gr.Number(
+                            label="Bâtiments",
+                            value=1,
+                            minimum=CONTROLES["batiments"][0],
+                            maximum=CONTROLES["batiments"][1],
+                            precision=0,
+                        )
 
-                    gr.Markdown("### Sources d'énergie présentes")
+                    gr.Markdown("SES SOURCES D'ÉNERGIE", elem_classes="oc-section")
                     electricite = gr.Checkbox(label="Électricité", value=True)
                     gaz = gr.Checkbox(label="Gaz naturel", value=False)
                     vapeur = gr.Checkbox(label="Réseau de vapeur", value=False)
 
                 with gr.Column():
+                    gr.Markdown("SES USAGES", elem_classes="oc-section")
                     gr.Markdown(
-                        "### Usages\n"
-                        "Les **trois usages principaux** et leur part de surface, "
-                        "en pourcentage du total. Les parts doivent faire 100 %."
+                        "Les trois usages principaux et leur part de surface, "
+                        "en pourcentage. Les parts doivent faire 100 %."
                     )
                     with gr.Row():
                         usage1 = gr.Dropdown(
@@ -589,36 +668,40 @@ with gr.Blocks(title="Estimation énergétique — bâtiments de Seattle") as de
 
                     nb_usages = gr.Number(
                         label="Nombre total d'usages déclarés",
-                        info="Si le bâtiment en abrite plus de trois, indiquez-le ici : "
-                        "le compte est une variable à part entière.",
+                        info="Si le bâtiment en abrite plus de trois, indiquez-le "
+                        "ici : le compte est une variable à part entière.",
                         value=1,
                         minimum=1,
                         precision=0,
                     )
-                    bouton = gr.Button("Estimer", variant="primary", size="lg")
 
-            # Same rule as before the explanation block: it separates what the
-            # user fills in from what the model answers.
-            gr.Markdown("---")
 
-            with gr.Row():
-                carte_energie = gr.Markdown(sanitize_html=False)
-                carte_emissions = gr.Markdown(sanitize_html=False)
+            bouton = gr.Button(
+                "Estimer",
+                variant="primary",
+                size="lg",
+                elem_id="oc-estimer",
+                elem_classes="oc-cta",
+            )
 
-            # Subordinate to the results above: a rule marks the break, and the
-            # heading sits a level below the card titles rather than beside them.
-            gr.Markdown(
-                """---
-#### Facteurs déterminants de la consommation et des émissions
+            # Results stay hidden until there is something to show, so the page
+            # does not open on two empty frames.
+            with gr.Column(visible=False) as bloc_resultats:
+                gr.Markdown("---")
+                with gr.Row():
+                    resultat_energie = gr.HTML()
+                    resultat_emissions = gr.HTML()
+
+                gr.Markdown("---")
+                gr.Markdown(
+                    """#### Facteurs déterminants de la consommation et des émissions
 
 Chaque caractéristique multiplie ou divise l'estimation par rapport à un
 bâtiment médian du parc de Seattle."""
-            )
-            with gr.Row():
-                # Titles live inside the generated HTML: gr.HTML renders without
-                # a container, so its own label would not show.
-                plot_energie = gr.HTML()
-                plot_emissions = gr.HTML()
+                )
+                with gr.Row():
+                    facteurs_energie = gr.HTML()
+                    facteurs_emissions = gr.HTML()
 
             bouton.click(
                 estimer,
@@ -640,38 +723,48 @@ bâtiment médian du parc de Seattle."""
                     vapeur,
                 ],
                 outputs=[
-                    carte_energie,
-                    carte_emissions,
-                    plot_energie,
-                    plot_emissions,
+                    resultat_energie,
+                    resultat_emissions,
+                    facteurs_energie,
+                    facteurs_emissions,
+                    bloc_resultats,
                 ],
                 api_name="estimer",
+                show_progress="full",
             )
 
         with gr.Tab("Portefeuille"):
             gr.Markdown(
                 "## Estimer un parc entier\n"
-                "Déposez un CSV décrivant vos bâtiments : le tableau ressort trié par "
-                "émissions estimées décroissantes — l'ordre dans lequel lancer les "
-                "audits.\n\n"
+                "Déposez un CSV décrivant vos bâtiments : le tableau ressort trié "
+                "par émissions estimées décroissantes — l'ordre dans lequel lancer "
+                "les audits.\n\n"
                 "**Colonnes attendues :** `" + "`, `".join(PORTFOLIO_COLUMNS) + "`\n\n"
-                "Aucune colonne de consommation : c'est précisément ce que le modèle "
-                "estime."
+                "Aucune colonne de consommation : c'est précisément ce que le "
+                "modèle estime."
             )
             fichier = gr.File(label="Fichier CSV", file_types=[".csv"])
-            lancer = gr.Button("Estimer le portefeuille", variant="primary")
-            tableau = gr.Dataframe(label="Résultats", wrap=True)
-            telechargement = gr.File(label="Télécharger les résultats complets")
+            gr.Markdown(
+                "Pas de fichier sous la main ? `data/exemple_portefeuille.csv` "
+                "du dépôt contient dix bâtiments réels du parc de Seattle."
+            )
+            lancer = gr.Button(
+                "Estimer le portefeuille", variant="primary", elem_classes="oc-cta"
+            )
 
-            gr.Markdown("---")
-            gr.Markdown("#### Lecture d'ensemble du portefeuille")
-            synthese = gr.HTML()
+            with gr.Column(visible=False) as bloc_portefeuille:
+                tableau = gr.Dataframe(label="Résultats", wrap=True)
+                telechargement = gr.File(label="Télécharger les résultats complets")
+                gr.Markdown("---")
+                gr.Markdown("#### Lecture d'ensemble du portefeuille")
+                synthese = gr.HTML()
 
             lancer.click(
                 traiter_portefeuille,
                 inputs=[fichier],
-                outputs=[tableau, telechargement, synthese],
+                outputs=[tableau, telechargement, synthese, bloc_portefeuille],
                 api_name="portefeuille",
+                show_progress="full",
             )
 
         with gr.Tab("Modèle & limites"):
@@ -679,4 +772,4 @@ bâtiment médian du parc de Seattle."""
 
 
 if __name__ == "__main__":
-    demo.launch()
+    demo.launch(theme=THEME, css_paths=[str(RACINE / "static" / "app.css")])

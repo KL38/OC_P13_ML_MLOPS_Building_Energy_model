@@ -23,5 +23,15 @@ dependencies = [
 [dependency-groups]
 dev = [
     "ipykernel>=7.3.0",
+    "pytest>=9.1.1",
     "ruff>=0.16.4",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --strict-markers"
+filterwarnings = [
+    # gr.Warning is a real UserWarning outside a Gradio request context; one
+    # test asserts on it, so it must not be turned into an error.
+    "default::UserWarning",
 ]
