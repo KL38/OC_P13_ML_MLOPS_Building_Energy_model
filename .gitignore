@@ -1,42 +1,59 @@
+# ============================================================================
+# OC_P13 — mise en production du modele energetique de P3
+# ============================================================================
+
+# --- Prive et secrets -------------------------------------------------------
+
+# Dossier de travail personnel : rendus OpenClassrooms, brouillons, notes.
 portfolio/
 
+# Cle d'API TabPFN, ecrite a la racine par la bibliotheque a la premiere
+# authentification. Ne doit jamais partir dans un commit.
+.tabpfn_token
 
-# Données dérivées, régénérables par les notebooks.
-#
-# `notebooks/df.csv` fait exception et EST versionné (1,3 Mo) : c'est le dataset consolidé
-# que l'Étape 1 du brief demande de livrer — « ce fichier unique sera la source de vérité
-# pour les étapes suivantes ». Sa présence fait aussi tourner en CI le test qui aligne les
-# dix libellés de culture sur le jeu d'entraînement, jusqu'ici désactivé faute de fichier.
-*.parquet
+# Documents de travail : brief OpenClassrooms, plan projet, rapport en cours.
+# Ils appartiennent au dossier de rendu, pas au depot de code — le README porte
+# a lui seul ce qu'un lecteur du depot doit savoir.
+brief/
+.claude/
 
-# MLflow — magasin de suivi et artefacts des runs, régénérés par le notebook.
-# mlartifacts/ pesait 425 Mo sur 546 fichiers et était suivi par git faute de figurer ici :
-# un .gitignore n'a aucun effet sur ce qui est déjà indexé. Retiré du suivi par
-# `git rm -r --cached mlartifacts`. Ce qui doit survivre à l'entraînement, ce sont les
-# captures MLflow du rapport et models/model_B.joblib, pas ce magasin local.
+# --- Sorties regenerables ---------------------------------------------------
+
+# CodeCarbon. `emissions.csv` agrege les runs, `emissions_base_<uuid>.csv`
+# detaille les taches — le second est nomme avec un UUID, d'ou le motif. Les
+# chiffres qui comptent sont consignes dans docs/empreinte_carbone.md.
+emissions.csv
+emissions_base_*.csv
+
+# MLflow — magasin de suivi local, regenere par notebooks/03_modelisation.ipynb.
+# Le notebook l'ecrit dans son propre dossier : un motif sans slash initial
+# couvre `mlruns/` comme `notebooks/mlruns/`.
 mlruns/
 mlartifacts/
 mlflow.db
 
-# Logs d'entraînement CatBoost
+# Journaux d'entrainement CatBoost.
 catboost_info/
 
-# Documents de travail et sorties intermédiaires : ils appartiennent au dossier de rendu
-# OpenClassrooms, pas au dépôt de code. Le README porte à lui seul ce qu'un lecteur du
-# dépôt doit savoir.
-brief/
-.claude/
-figures/
-livrables/
+# --- Volontairement versionnes ----------------------------------------------
+#
+# Deux dossiers qu'on pourrait croire ignorables et qui ne le sont pas :
+#
+# models/ (2,1 Mo) — le Space charge ces artefacts depuis le disque du
+#   conteneur, sans passer par le Hub : a cette taille, un telechargement au
+#   demarrage n'ajouterait qu'un mode de panne. Sans eux dans le depot,
+#   l'application deployee n'a rien a servir. La tracabilite de l'entrainement
+#   reste portee par le registre MLflow (alias @champion), pas par git.
+#
+# data/ (1,5 Mo) — `2016.csv` est la source brute, `dfclean.csv` la sortie du
+#   notebook d'EDA. Les versionner rend les notebooks rejouables tels quels et
+#   laisse les tests tourner en CI sans telechargement prealable.
 
-# models/model_B.joblib est VOLONTAIREMENT versionné (217 Ko) : c'est ce que le Dockerfile
-# copie dans l'image. Sans lui dans le dépôt, un `docker build` sur un runner GitHub n'a
-# rien à embarquer et l'API ne démarre pas. Le tirer de MLflow au build supposerait un
-# serveur joignable depuis le runner — de la complexité pour aucun bénéfice à cette taille.
-# La traçabilité reste portée par le registre MLflow (alias @champion), pas par git.
+# --- Environnement Python ---------------------------------------------------
 
-# Environnement Python
 .venv/
 __pycache__/
 *.py[cod]
 .ipynb_checkpoints/
+.ruff_cache/
+.pytest_cache/

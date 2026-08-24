@@ -1,0 +1,67 @@
+{
+  "date": "2026-08-21T15:41:10+00:00",
+  "jeu_source": "Seattle Building Energy Benchmarking 2016",
+  "n_batiments_entrainement": 1655,
+  "confidence_level": 0.75,
+  "features": [
+    "YearBuilt",
+    "NumberofBuildings",
+    "NumberofFloors",
+    "logGFAtotal",
+    "NbUsage",
+    "HasElectricity",
+    "HasGas",
+    "HasSteam",
+    "nb_BALLARD",
+    "nb_CENTRAL",
+    "nb_DELRIDGE",
+    "nb_DOWNTOWN",
+    "nb_EAST",
+    "nb_GREATER_DUWAMISH",
+    "nb_LAKE_UNION",
+    "nb_MAGNOLIA_QUEEN_ANNE",
+    "nb_NORTH",
+    "nb_NORTHEAST",
+    "nb_NORTHWEST",
+    "nb_SOUTHEAST",
+    "nb_SOUTHWEST",
+    "t_Assembly",
+    "t_Commercial",
+    "t_Education",
+    "t_Food_Service",
+    "t_High_Intensity",
+    "t_Lodging",
+    "t_Office",
+    "t_Others",
+    "t_Parking",
+    "t_Public_Safety",
+    "t_Storage_Dry"
+  ],
+  "cible_transformee": "log1p — appliquer expm1 aux prédictions et aux deux bornes",
+  "versions": {
+    "scikit-learn": "1.9.0",
+    "catboost": "1.2.10",
+    "mapie": "1.5.0",
+    "numpy": "2.5.2",
+    "pandas": "2.3.3",
+    "joblib": "1.5.3"
+  },
+  "modeles": {
+    "energie": {
+      "estimateur": "GradientBoosting",
+      "fichier": "energie_model.joblib",
+      "R2_log_hors_fold": 0.7447,
+      "MedAPE_hors_fold": 0.3657,
+      "couverture_observee_test": 0.8127,
+      "facteur_intervalle": 2.025
+    },
+    "emissions": {
+      "estimateur": "CatBoost",
+      "fichier": "emissions_model.joblib",
+      "R2_log_hors_fold": 0.7234,
+      "MedAPE_hors_fold": 0.4512,
+      "couverture_observee_test": 0.8097,
+      "facteur_intervalle": 2.343
+    }
+  }
+}

@@ -1,0 +1,11 @@
+YearBuilt,NumberofBuildings,NumberofFloors,PropertyGFATotal,Neighborhood,NbUsage,HasElectricity,HasGas,HasSteam,LargestPropertyUseType,LargestPropertyUseTypeGFA,SecondLargestPropertyUseType,SecondLargestPropertyUseTypeGFA,ThirdLargestPropertyUseType,ThirdLargestPropertyUseTypeGFA
+1999,1.0,6,1585960,GREATER DUWAMISH,2,True,True,False,Other - Entertainment/Public Assembly,1585960.0,Parking,0.0,,
+2009,1.0,39,1074552,DOWNTOWN,3,True,True,False,Multifamily Housing,311521.0,Hotel,303000.0,Parking,141450.0
+2010,1.0,12,571329,LAKE UNION,3,True,True,False,Office,598801.0,Parking,310699.0,Other,26203.0
+2002,1.0,6,361398,NORTHEAST,4,True,True,False,Parking,232685.0,Retail Store,63419.0,Non-Refrigerated Warehouse,15757.0
+1971,3.0,6,250981,CENTRAL,2,True,True,True,Other,137565.0,Courthouse,78357.0,,
+1997,1.0,1,131387,NORTHWEST,1,True,True,False,Retail Store,107931.0,,,,
+2001,1.0,3,62078,EAST,1,True,True,False,K-12 School,62078.0,,,,
+1997,1.0,1,40189,DELRIDGE,3,True,True,False,Other - Utility,28347.0,Office,9113.0,Parking,0.0
+1979,1.0,1,39350,NORTH,3,True,False,False,Supermarket/Grocery Store,19271.0,Retail Store,19249.0,Food Service,2663.0
+1965,1.0,1,23169,MAGNOLIA / QUEEN ANNE,1,True,False,False,Manufacturing/Industrial Plant,10200.0,,,,

@@ -1,0 +1,20 @@
+# Runtime dependencies of the Space. Versions are pinned to the ones that
+# produced the artefacts in models/: a joblib holding fitted scikit-learn and
+# CatBoost estimators is not guaranteed to unpickle across minor versions.
+# Cross-checked against models/metadata.json at every retrain.
+#
+# Training-only tools (mlflow, codecarbon, tabpfn) are deliberately absent --
+# the Space serves, it does not train. uv + pyproject.toml stay the source of
+# truth for the development environment.
+
+gradio==6.25.0
+
+scikit-learn==1.9.0
+catboost==1.2.10
+mapie==1.5.0
+shap==0.52.0
+
+pandas==2.3.3
+numpy==2.5.2
+matplotlib==3.11.1
+joblib==1.5.3

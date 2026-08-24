@@ -147,7 +147,9 @@ USAGE_SLOTS = (
     ("ThirdLargestPropertyUseType", "ThirdLargestPropertyUseTypeGFA"),
 )
 
-TARGETS = ("SiteEnergyUse_kBtu", "TotalGHGEmissions")
+# Target columns, as named in dfclean.csv. P3 renamed the first one; we keep the
+# source name so the cleaned file stays comparable to the raw benchmark.
+TARGETS = ("SiteEnergyUse(kBtu)", "TotalGHGEmissions")
 
 
 def _neighbourhood_column(name: str) -> str:
@@ -161,7 +163,6 @@ FEATURE_COLUMNS: tuple[str, ...] = (
     "NumberofBuildings",
     "NumberofFloors",
     "logGFAtotal",
-    "ParkingRatio",
     "NbUsage",
     "HasElectricity",
     "HasGas",
@@ -223,7 +224,6 @@ def _row_features(desc: Mapping, composition: dict[str, float]) -> dict:
         "NumberofBuildings": float(desc["NumberofBuildings"]),
         "NumberofFloors": float(desc["NumberofFloors"]),
         "logGFAtotal": float(np.log1p(gfa_total)),
-        "ParkingRatio": float(desc.get("PropertyGFAParking", 0.0) or 0.0) / gfa_total,
         "NbUsage": int(desc["NbUsage"]),
         "HasElectricity": int(bool(desc["HasElectricity"])),
         "HasGas": int(bool(desc["HasGas"])),
@@ -282,7 +282,6 @@ def build_features_one(
     gfa_total: float,
     neighbourhood: str,
     usages: Sequence[tuple[str, float]],
-    gfa_parking: float = 0.0,
     nb_usages: int | None = None,
     has_electricity: bool = True,
     has_gas: bool = False,
@@ -299,7 +298,6 @@ def build_features_one(
         "NumberofBuildings": number_of_buildings,
         "NumberofFloors": number_of_floors,
         "PropertyGFATotal": gfa_total,
-        "PropertyGFAParking": gfa_parking,
         "Neighborhood": neighbourhood,
         "NbUsage": len(usages) if nb_usages is None else nb_usages,
         "HasElectricity": has_electricity,
