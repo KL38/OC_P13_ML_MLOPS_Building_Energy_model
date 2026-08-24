@@ -22,6 +22,15 @@ class FichierDepose:
         self.name = str(chemin)
 
 
+def test_le_marqueur_zerogpu_existe():
+    """ZeroGPU refuses to start the Space without a decorated function.
+
+    Deleting it as dead code would break the deployment and nothing else, so
+    the guard belongs here rather than in a comment.
+    """
+    assert callable(app._presence_zerogpu)
+
+
 # ------------------------------------------------------------- validation
 
 
