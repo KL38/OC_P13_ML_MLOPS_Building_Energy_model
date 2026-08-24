@@ -8,7 +8,7 @@ sdk_version: 6.25.0
 python_version: 3.12.12
 app_file: app.py
 pinned: false
-short_description: Consommation et émissions estimées, avec intervalles de confiance
+short_description: Consommation et émissions estimées, avec leur fourchette
 ---
 
 # Estimation énergétique des bâtiments de Seattle

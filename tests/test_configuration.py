@@ -89,5 +89,15 @@ def test_mlflow_ne_part_pas_dans_le_space():
         assert absent not in epingles
 
 
+def test_la_description_courte_respecte_la_limite_du_hub():
+    """The Hub rejects the whole upload over 60 characters, not just the field.
+
+    It refuses at `upload_folder` time with a 400 on validate-yaml, so an
+    over-long line fails the deployment after the tests have already passed.
+    """
+    description = _entete_yaml()["short_description"]
+    assert len(description) <= 60, f"{len(description)} caractères"
+
+
 def test_la_feuille_de_style_existe():
     assert (RACINE / "static" / "app.css").is_file()
