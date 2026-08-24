@@ -1,0 +1,58 @@
+% ===========================================================================
+%  Rapport de conduite de projet Data & ML — OC_P13
+%  Mise en production du modèle de prédiction énergétique de Seattle
+%
+%  Sur Overleaf : déposer ce dossier tel quel, choisir main.tex comme document
+%  principal, compilateur pdfLaTeX. Aucun paquet à installer.
+% ===========================================================================
+
+\documentclass[11pt,a4paper]{article}
+
+\input{preambule}
+
+\begin{document}
+
+% ---------------------------------------------------------------- Titre ---
+\begin{titlepage}
+\centering
+\vspace*{2.5cm}
+
+{\Large\color{gristexte}Rapport de conduite de projet Data \& ML\par}
+\vspace{1.2cm}
+
+{\Huge\bfseries Mise en production d'un modèle\\[0.3em]
+de prédiction énergétique\par}
+\vspace{0.9cm}
+
+{\large\color{gristexte}Parc immobilier de la Ville de Seattle\par}
+\vspace{2.5cm}
+
+\begin{tabularx}{0.8\linewidth}{@{}l>{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Auteur} & Kevin Lebayle \\
+\textbf{Projet} & OC\_P13 — Portfolio en situation professionnelle \\
+\textbf{Parcours} & Data Scientist Machine Learning \\
+\textbf{Application} & \href{https://huggingface.co/spaces/KLEB38/OC_P13_seattle_energy_emission_predictions}{Space Hugging Face} \\
+\textbf{Code} & \href{https://github.com/KL38/OC_P13_ML_MLOPS_Building_Energy_model}{Dépôt GitHub} \\
+\bottomrule
+\end{tabularx}
+
+\vfill
+{\color{gristexte}\today\par}
+\end{titlepage}
+
+% ------------------------------------------------------------- Sommaire ---
+\tableofcontents
+\newpage
+
+% -------------------------------------------------------------- Sections --
+\input{sections/00_synthese}
+\input{sections/01_contexte}
+\input{sections/02_audit}
+\input{sections/03_solution}
+\input{sections/04_appui}
+\input{sections/05_controle}
+\input{sections/06_conclusion}
+\input{sections/07_annexes}
+
+\end{document}

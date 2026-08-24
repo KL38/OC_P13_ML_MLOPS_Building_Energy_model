@@ -57,3 +57,19 @@ __pycache__/
 .ipynb_checkpoints/
 .ruff_cache/
 .pytest_cache/
+
+# --- LaTeX ------------------------------------------------------------------
+# Sorties de compilation du rapport. `main.pdf` EST suivi : c'est le livrable,
+# et il doit etre lisible sans avoir a installer une distribution TeX.
+rapport/*.aux
+rapport/*.log
+rapport/*.out
+rapport/*.toc
+rapport/*.fls
+rapport/*.fdb_latexmk
+rapport/*.synctex.gz
+rapport/apercu/
+
+# Archives d'envoi vers Overleaf : regenerables a partir du dossier lui-meme.
+rapport/old/
+rapport/*.zip

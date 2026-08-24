@@ -1,0 +1,44 @@
+\section*{Synthèse}
+\addcontentsline{toc}{section}{Synthèse}
+\markboth{Synthèse}{}
+
+Ce projet reprend les notebooks d'un projet antérieur de modélisation énergétique
+(prédiction de la consommation et des émissions du parc immobilier de Seattle) et
+les porte en production : une application en ligne, un modèle versionné, une
+chaîne d'intégration continue et un journal de décisions.
+
+L'audit de l'existant a produit le constat structurant du projet. Le modèle
+initial affichait un $R^2$ de $0{,}81$ sur les émissions, mais il consommait des
+variables calculées \emph{à partir de la consommation réelle} : un utilisateur
+capable de les renseigner connaît déjà la réponse qu'il vient chercher. Retirer
+cette fuite coûte dix points de performance mesurée et rend le modèle utilisable
+sur un bâtiment jamais relevé — c'est-à-dire sur le cas d'usage.
+
+\begin{constat}{Le résultat le plus solide du projet n'est pas une performance, c'est une limite mesurée.}
+Parmi 163 immeubles de bureaux de taille comparable, la consommation au pied
+carré varie d'un facteur $3{,}4$. Aucun modèle utilisant ces variables ne peut
+départager ces bâtiments. Un intervalle construit sur cette seule dispersion
+irréductible vaudrait un facteur $2{,}24$ ; le modèle livré produit un facteur
+$2{,}03$. \textbf{Il est donc déjà plus serré que l'écart naturel entre bâtiments
+que rien ne distingue.} L'incertitude affichée n'est pas un défaut de
+modélisation, c'est une propriété du problème.
+\end{constat}
+
+Chaque estimation est donc accompagnée d'une fourchette, produite par
+\emph{prédiction conforme}, dont la couverture est garantie sans hypothèse sur la
+loi des erreurs. L'interface annonce explicitement que l'outil sert à classer un
+parc et à prioriser des audits, pas à chiffrer un bâtiment.
+
+Trois arbitrages ont été tranchés par la mesure plutôt que par l'opinion : un
+modèle de fondation écarté malgré le meilleur score du banc d'essai, une
+plateforme d'hébergement changée en cours de route sous contrainte commerciale
+externe, et un dispositif de supervision volontairement non implémenté. Les trois
+sont documentés avec leurs chiffres, y compris ceux qui contredisent l'intuition
+de départ.
+
+\vspace{0.6em}
+\noindent\textbf{Livrables} : application publique, dépôt de code, 61 tests
+automatisés, chaîne CI/CD déployante, registre d'expérimentations, et un journal
+de seize écarts documentés vis-à-vis de la solution auditée.
+
+\newpage

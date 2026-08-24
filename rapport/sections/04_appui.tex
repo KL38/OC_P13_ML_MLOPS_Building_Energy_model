@@ -1,0 +1,172 @@
+\section{Appui stratégique et méthodologique}
+\markboth{4. Appui stratégique et méthodologique}{}
+
+\subsection{Proposition de démarche projet}
+
+\subsubsection*{Méthodologie retenue}
+
+La démarche suit \textbf{CRISP-DM}, avec une adaptation : la phase de déploiement
+n'est pas un aboutissement mais une contrainte amont. Le besoin « servir un
+bâtiment non relevé » a été posé \emph{avant} la modélisation, et c'est lui qui a
+disqualifié les variables en fuite. Une démarche où le déploiement arrive en
+dernier aurait laissé la fuite passer jusqu'en production.
+
+Le cycle est itératif dans les faits : la découverte de la fuite en phase de
+préparation a provoqué un retour en compréhension du métier, et la contrainte
+d'hébergement rencontrée en phase de déploiement a provoqué un retour en
+conception.
+
+\subsubsection*{Feuille de route}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\linewidth}{@{}L{1.3cm}L{3.4cm}XL{2.4cm}@{}}
+\toprule
+\textbf{Phase} & \textbf{Objet} & \textbf{Livrable de sortie} & \textbf{Jalon} \\
+\midrule
+0 & Cadrage & Plan de travail, dépôt initialisé, règle de traçabilité & Périmètre arrêté \\
+1 & Reprise et audit des données & Jeu nettoyé, journal d'écarts ouvert & Données rejouables \\
+2 & Préparation partagée & \code{src/features.py}, analyse bivariée & Préparation figée \\
+3 & Modélisation et arbitrages & Banc d'essai, conformalisation, artefacts & Modèles exportés \\
+4 & Application & Interface, trois cas d'usage & Application locale \\
+5 & Industrialisation & Tests, CI/CD, déploiement & \textbf{Application en ligne} \\
+6 & Restitution & Rapport, portfolio & Soutenance \\
+\bottomrule
+\end{tabularx}
+\caption{Feuille de route par phases.}
+\end{table}
+
+\subsubsection*{Responsabilités}
+
+Le projet est conduit par une personne seule, ce qui n'annule pas la question des
+rôles mais la déplace : chaque rôle doit être \emph{explicitement endossé} à un
+moment donné, faute de quoi il est oublié.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\linewidth}{@{}L{3.4cm}X@{}}
+\toprule
+\textbf{Rôle endossé} & \textbf{Ce qu'il a effectivement produit} \\
+\midrule
+Analyste métier & Reconstitution des besoins, matrice de priorisation, périmètre \\
+Auditeur & Grille d'évaluation de l'existant, mise en évidence de la fuite \\
+Data scientist & Préparation, banc d'essai, conformalisation \\
+Ingénieur MLOps & Tests, CI/CD, versionnement des artefacts, déploiement \\
+Concepteur d'interface & Hiérarchie visuelle, formulation métier de l'incertitude \\
+\bottomrule
+\end{tabularx}
+\caption{Rôles endossés au cours du projet.}
+\end{table}
+
+\subsection{Aide à la prise de décision}
+
+\subsubsection*{Risques et opportunités}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\linewidth}{@{}L{4.4cm}L{1.6cm}X@{}}
+\toprule
+\textbf{Risque} & \textbf{Gravité} & \textbf{Réponse apportée} \\
+\midrule
+Estimation prise pour une mesure & \textbf{Élevée} & Fourchette systématique, usage écrit dans l'interface \\
+Dérive de versions entre entraînement et service & \textbf{Élevée} & Versions épinglées et vérifiées par un test dédié \\
+Changement des conditions de l'hébergeur & Moyenne & Déjà survenu deux fois ; le code reste portable \\
+Bâtiment hors domaine soumis à l'outil & Moyenne & Avertissement non bloquant au-delà du domaine observé \\
+Réentraînement dégradant le modèle & Moyenne & Seuils de non-régression bloquants en intégration continue \\
+Abandon de maintenance & Faible & Aucune brique à surveiller en continu, par conception \\
+\midrule
+\textbf{Opportunité} & & \textbf{Condition de réalisation} \\
+\midrule
+API réutilisable par un tiers & & Acquise, générée par le cadre applicatif \\
+Extension à d'autres millésimes & & Le pipeline est rejouable ; coût marginal faible \\
+Extension à d'autres villes & & \textbf{Non} : romprait l'hypothèse d'échangeabilité \\
+\bottomrule
+\end{tabularx}
+\caption{Synthèse des risques et opportunités.}
+\end{table}
+
+\subsubsection*{Scénarios budgétaires}
+
+Les coûts d'infrastructure sont documentés ci-dessous. Le coût de mise en œuvre
+est exprimé en jours-homme ; sa valorisation dépend du taux journalier retenu et
+n'est donc pas chiffrée ici.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\linewidth}{@{}L{3.2cm}L{2.4cm}XL{2.2cm}@{}}
+\toprule
+\textbf{Scénario} & \textbf{Coût récurrent} & \textbf{Ce qu'il apporte} & \textbf{Décision} \\
+\midrule
+Hébergement gratuit & \textbf{0\,\$} & Application publique, mise en veille automatique après inactivité & \textbf{Retenu} \\
+\addlinespace
+Abonnement PRO & 9\,\$ / mois & Débloque le conteneur Docker et le matériel CPU dédié & Écarté : n'achète qu'une différence d'outillage \\
+\addlinespace
+Matériel CPU dédié & $\approx$ 22\,\$ / mois & Supprime le temps de démarrage à froid & Écarté : voir ci-dessous \\
+\bottomrule
+\end{tabularx}
+\caption{Scénarios budgétaires d'infrastructure.}
+\end{table}
+
+\begin{constat}{Un arbitrage éclairé par la mesure d'empreinte}
+Le troisième scénario a été écarté sur un argument qui n'est pas seulement
+financier. Un conteneur maintenu éveillé consomme, à 10~W de puissance moyenne,
+environ \textbf{88~kWh par an} — soit \textbf{douze mille fois} l'énergie
+consommée par la totalité du banc d'essai. Pour un modèle réentraîné une fois par
+an et un usage épisodique, payer pour supprimer un temps de démarrage revient à
+financer une consommation continue sans contrepartie d'usage.
+\end{constat}
+
+\subsubsection*{Indicateurs de succès}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\linewidth}{@{}L{4.8cm}L{3.2cm}X@{}}
+\toprule
+\textbf{Indicateur} & \textbf{Cible} & \textbf{Nature} \\
+\midrule
+Erreur relative médiane hors bloc & $\leq 40\,\%$ & Technique, bloquant en CI \\
+Couverture observée des fourchettes & $\geq 75\,\%$ & Technique, bloquant en CI \\
+Bornes ordonnées sur tout le parc & 100\,\% & Technique, bloquant en CI \\
+Suite de tests au vert avant déploiement & 100\,\% & Technique, bloquant \\
+\midrule
+Part des émissions couverte par les 20\,\% premiers audits & À mesurer & Métier \\
+Taux de confirmation d'une priorisation par l'audit réel & À mesurer & Métier \\
+Nombre de bâtiments pré-qualifiés sans déplacement & À mesurer & Métier \\
+\bottomrule
+\end{tabularx}
+\caption{Indicateurs de succès techniques et métier.}
+\end{table}
+
+Les indicateurs métier sont marqués « à mesurer » et non renseignés : ils
+supposent un retour d'usage qui n'existe pas encore. Les afficher avec des
+valeurs inventées les rendrait inutiles.
+
+\subsubsection*{Impacts pris en compte}
+
+\begin{description}[leftmargin=0em,style=nextline,itemsep=0.35em]
+  \item[Éthique et réputationnel] Les données sont publiques et nominatives à
+        l'échelle du bâtiment. Publier qu'un bâtiment identifié est « le plus
+        consommateur de sa catégorie » sur la foi d'une estimation fausse d'un
+        facteur~2 serait dommageable pour son propriétaire. C'est la raison
+        première pour laquelle la fourchette est affichée au même niveau que
+        l'estimation, et non en note de bas de page.
+  \item[Légal] Les estimations sont opposables dans un contexte réglementaire.
+        L'interface indique explicitement qu'elles ne peuvent servir ni à
+        facturer, ni à contractualiser, ni à dimensionner un investissement.
+  \item[Données personnelles] Aucune donnée à caractère personnel n'est traitée :
+        le jeu décrit des bâtiments, pas des occupants. Le RGPD n'est pas
+        applicable au traitement.
+  \item[Environnemental] L'empreinte de l'entraînement a été mesurée plutôt
+        qu'estimée, et cette mesure a servi un arbitrage réel
+        (section~\ref{sec:carbone}).
+  \item[Organisationnel] La solution n'ajoute aucune brique à surveiller en
+        continu, ce qui est une décision de conception assumée pour un service
+        disposant d'un seul utilisateur métier et d'aucune équipe d'exploitation.
+\end{description}
+
+\newpage

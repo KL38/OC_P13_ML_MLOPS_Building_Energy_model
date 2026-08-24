@@ -1,0 +1,104 @@
+% ===========================================================================
+%  Préambule — rapport de conduite de projet OC_P13
+%
+%  Compilation : pdfLaTeX (le compilateur par défaut d'Overleaf).
+%  Tous les paquets utilisés sont dans la distribution TeX Live standard,
+%  donc rien à installer.
+% ===========================================================================
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[french]{babel}
+\usepackage{newtxtext,newtxmath}
+\usepackage{microtype}
+
+\usepackage[a4paper,margin=2.4cm,headheight=15pt]{geometry}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{caption}
+\usepackage{float}
+\usepackage{csquotes}
+
+% Nombres : separateur de milliers par espace fine, virgule decimale.
+\usepackage{siunitx}
+\sisetup{
+  group-separator = {\,},
+  group-minimum-digits = 4,
+  output-decimal-marker = {,},
+  detect-all,
+}
+
+\usepackage[hidelinks]{hyperref}
+\hypersetup{
+  pdftitle={Mise en production d'un modèle de prédiction énergétique},
+  pdfauthor={Kevin Lebayle},
+  colorlinks=true,
+  linkcolor=accent,
+  urlcolor=accent,
+  citecolor=accent,
+}
+
+% --- Couleurs -------------------------------------------------------------
+% Les deux cibles du modèle gardent dans le rapport les couleurs qu'elles ont
+% dans l'application : bleu pour l'énergie, orange pour les émissions.
+\definecolor{accent}{HTML}{2A78D6}
+\definecolor{emissions}{HTML}{EB6834}
+\definecolor{encadre}{HTML}{F4F6F8}
+\definecolor{filet}{HTML}{D5DBE1}
+\definecolor{gristexte}{HTML}{52514E}
+
+% --- En-têtes -------------------------------------------------------------
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0.4pt}
+\fancyhead[L]{\small\color{gristexte}Conduite de projet — OC\_P13}
+\fancyhead[R]{\small\color{gristexte}\leftmark}
+\fancyfoot[C]{\small\thepage}
+
+% --- Titres de section ----------------------------------------------------
+\usepackage{tikz}
+\usetikzlibrary{positioning}
+
+\usepackage{titlesec}
+\titleformat{\section}
+  {\normalfont\Large\bfseries\color{accent}}{\thesection}{0.8em}{}
+\titleformat{\subsection}
+  {\normalfont\large\bfseries}{\thesubsection}{0.7em}{}
+\titleformat{\subsubsection}
+  {\normalfont\normalsize\bfseries\color{gristexte}}{\thesubsubsection}{0.6em}{}
+
+% --- Tableaux -------------------------------------------------------------
+\renewcommand{\arraystretch}{1.25}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+\newcolumntype{R}[1]{>{\raggedleft\arraybackslash}p{#1}}
+
+\captionsetup{font=small,labelfont=bf,labelsep=period}
+
+% --- Encadré « à retenir » ------------------------------------------------
+% Bâti sur tcolorbox et non sur tabularx : tabularx doit scanner son corps
+% jusqu'au \end correspondant, ce qui est impossible quand le \begin est placé
+% dans la partie ouvrante d'un \newenvironment. tcolorbox gère ce cas, et
+% l'option `breakable` autorise en prime la coupure de page.
+\usepackage[most]{tcolorbox}
+
+\newenvironment{constat}[1]
+  {\begin{tcolorbox}[
+     enhanced, breakable,
+     colback=encadre, colframe=encadre,
+     borderline west={2.5pt}{0pt}{accent},
+     boxrule=0pt, arc=0pt, boxsep=0pt,
+     left=12pt, right=10pt, top=8pt, bottom=8pt,
+   ]%
+   \textbf{#1}\par\vspace{0.35em}}
+  {\end{tcolorbox}}
+
+% --- Raccourcis -----------------------------------------------------------
+\newcommand{\code}[1]{\texttt{\small #1}}
+\newcommand{\ecart}[1]{\textcolor{accent}{\textbf{#1}}}

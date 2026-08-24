@@ -1,0 +1,191 @@
+\section{Audit de la solution data existante}
+\markboth{2. Audit de la solution existante}{}
+
+\subsection{La solution auditée}
+
+\subsubsection*{Outils et technologies}
+
+La solution existante est un ensemble de notebooks Jupyter : un notebook
+d'analyse exploratoire et de préparation, un notebook de modélisation.
+Bibliothèques : pandas, scikit-learn, seaborn. Aucun script, aucun test, aucune
+dépendance versionnée, aucun artefact exporté.
+
+\subsubsection*{Processus d'exploitation}
+
+Le pipeline se lit de haut en bas dans les cellules :
+
+\begin{center}
+\small
+\code{2016.csv} $\rightarrow$ nettoyage manuel $\rightarrow$ \code{dftclean2.csv}
+(déjà transformé) $\rightarrow$ modélisation $\rightarrow$ score affiché en sortie de cellule
+\end{center}
+
+Le pipeline s'arrête là. Le meilleur modèle n'est ni sérialisé, ni comparé de
+manière traçable, ni servi. La sortie du projet est un \emph{nombre lu dans une
+cellule}, et le processus n'est rejouable que par réexécution manuelle du
+notebook dans l'ordre.
+
+\subsection{Évaluation de l'adéquation aux besoins}
+
+\subsubsection*{Critères retenus}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\linewidth}{@{}L{3.4cm}XL{2.5cm}@{}}
+\toprule
+\textbf{Critère} & \textbf{Question posée à la solution existante} & \textbf{Verdict} \\
+\midrule
+Pertinence métier & Le modèle peut-il servir un bâtiment non relevé ? & \textbf{Non} \\
+Fiabilité annoncée & La performance affichée mesure-t-elle le cas d'usage ? & \textbf{Non} \\
+Quantification du risque & Une estimation est-elle accompagnée de sa marge ? & \textbf{Non} \\
+Réutilisabilité & La préparation est-elle rejouable à l'inférence ? & \textbf{Non} \\
+Traçabilité & Les choix de modélisation sont-ils auditables ? & \textbf{Non} \\
+Choix d'algorithme & Les modèles retenus tiennent-ils face à l'état de l'art ? & \textbf{Oui} \\
+\bottomrule
+\end{tabularx}
+\caption{Grille d'évaluation de la solution existante.}
+\end{table}
+
+\subsubsection{La fuite de données}
+\label{sec:fuite}
+
+Le modèle existant consomme trois variables décrivant la répartition des sources
+d'énergie du bâtiment — la part de l'électricité, du gaz et de la vapeur dans sa
+consommation. Ces ratios se calculent en divisant chaque source par la
+consommation totale.
+
+\begin{constat}{Le problème n'est pas statistique, il est logique.}
+Pour renseigner ces ratios, il faut connaître la consommation de chaque source.
+Il faut donc déjà connaître la consommation totale — c'est-à-dire la réponse que
+le modèle est censé fournir. \textbf{Un utilisateur capable de remplir le
+formulaire n'a plus besoin du modèle.}
+\end{constat}
+
+Le remplacement de ces ratios par trois booléens de simple \emph{présence}
+(« ce bâtiment est-il raccordé au gaz ? ») rend le modèle utilisable. Le coût de
+cette correction a été mesuré en rejouant les deux protocoles à l'identique.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+& \multicolumn{2}{c}{\textbf{Énergie} ($R^2$)} & \multicolumn{2}{c}{\textbf{Émissions} ($R^2$)} \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}
+\textbf{Modèle} & Avec ratios & Sans ratios & Avec ratios & Sans ratios \\
+\midrule
+GradientBoosting & 0,753 & 0,745 & 0,808 & 0,720 \\
+CatBoost         & 0,756 & 0,744 & \textbf{0,821} & \textbf{0,723} \\
+\bottomrule
+\end{tabular}
+\caption{Coût de la suppression de la fuite, mesuré sur le même jeu de test.}
+\end{table}
+
+L'asymétrie est frappante et s'explique physiquement. Sur l'énergie, la
+correction coûte environ \textbf{un point} : la consommation totale dépend
+surtout de la taille et de l'usage, que le modèle conserve. Sur les émissions,
+elle coûte près de \textbf{dix points} : l'électricité de Seattle est largement
+décarbonée, si bien que les émissions dépendent avant tout du \emph{mix de
+combustibles} — précisément l'information que les ratios apportaient.
+
+\begin{constat}{Une performance affichée n'est pas une performance utilisable.}
+Le $R^2$ de $0{,}82$ de la solution existante est exact, mais il mesure un
+problème que personne ne se pose. Le chiffre honnête pour le cas d'usage réel est
+$0{,}72$. \textbf{L'audit fait donc baisser la performance annoncée du projet, et
+c'est son principal apport.}
+\end{constat}
+
+\subsubsection{Une préparation non réutilisable}
+
+La préparation des données de la solution existante est enchevêtrée dans les
+cellules du notebook : imputations, encodages et calculs de ratios s'appliquent à
+un \code{DataFrame} global, dans un ordre implicite. Rien n'est réutilisable pour
+traiter un bâtiment isolé.
+
+Trois conséquences pour la mise en production :
+
+\begin{enumerate}[leftmargin=1.6em,itemsep=0.25em]
+  \item Un encodeur ajusté sur les données doit être persisté et rechargé, sinon
+        l'inférence encode différemment de l'entraînement.
+  \item Une variable dérivée d'une année de référence (\code{Age = 2016 - YearBuilt})
+        dérive mécaniquement chaque année si la référence n'est pas figée.
+  \item Une modalité inconnue à l'inférence produit silencieusement une colonne
+        parasite plutôt qu'une erreur.
+\end{enumerate}
+
+Ces trois points sont des cas classiques de \emph{train/serve skew}. Ils sont
+traités en section~\ref{sec:source-unique}.
+
+\subsubsection{Aucune quantification de l'incertitude}
+
+La solution existante rend un nombre. Elle ne dit rien de sa fiabilité, alors que
+l'erreur relative varie fortement d'un bâtiment à l'autre : l'erreur médiane est
+de $37\%$, mais un bâtiment sur dix est faux d'un facteur~2 ou plus. Le même
+nombre affiché recouvre donc des situations radicalement différentes, sans que
+l'utilisateur puisse les distinguer.
+
+\subsubsection{Un banc d'essai pour contester les choix d'algorithme}
+
+L'audit ne pouvait pas se contenter de relire les choix de modélisation : il
+fallait les confronter par la mesure. Six familles ont été rejouées dans le même
+protocole, dont deux qui n'existaient pas ou n'avaient pas été envisagées.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{@{}lccl@{}}
+\toprule
+\textbf{Modèle} & \textbf{Énergie} ($R^2$) & \textbf{Émissions} ($R^2$) & \textbf{Statut} \\
+\midrule
+Référence naïve      & $-0{,}000$ & $-0{,}000$ & Plancher de contrôle \\
+RandomForest         & 0,725 & 0,707 & Existant \\
+HistGradientBoosting & 0,732 & 0,709 & Ajouté \\
+CatBoost             & 0,744 & \textbf{0,723} & \textbf{Retenu — émissions} \\
+GradientBoosting     & \textbf{0,745} & 0,720 & \textbf{Retenu — énergie} \\
+TabPFN               & 0,764 & 0,745 & Meilleur score, \textbf{écarté} \\
+\bottomrule
+\end{tabular}
+\caption{Banc d'essai, validation croisée stratifiée à 5 blocs, cible en $\log 1p$.}
+\end{table}
+
+\begin{constat}{Le choix d'algorithme de la solution existante est confirmé.}
+Six familles se tiennent en quatre points de $R^2$. Le modèle de fondation TabPFN
+ne gagne que deux points, dans le bruit d'échantillonnage pour un jeu de test de
+331~bâtiments. \textbf{La marge n'est pas dans l'algorithme} — un constat qui
+oriente toute la section « perspectives ».
+\end{constat}
+
+Les régressions linéaires et le SVR n'ont pas été rejoués : l'audit initial les
+avait déjà écartés sur mesure, et les reproduire aurait consommé du temps sans
+apporter d'information nouvelle. Cet arbitrage est documenté plutôt que
+silencieux.
+
+\subsection{Synthèse des écarts}
+
+Seize écarts par rapport à la solution existante ont été consignés au fil du
+projet, chacun avec son étape, son changement et son impact attendu. Le journal
+complet figure en annexe~\ref{ann:ecarts}. Les cinq structurants :
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\linewidth}{@{}cL{4.2cm}X@{}}
+\toprule
+\textbf{Réf.} & \textbf{Écart} & \textbf{Impact} \\
+\midrule
+E08 & Ratios d'énergie $\rightarrow$ booléens de présence & Le modèle devient utilisable sans relevé. $-10$ points sur les émissions \\
+E01 & Correction d'un copier-coller sur deux bâtiments & Deux observations fausses en moins \\
+E07 & 19 modalités de quartier ramenées à 13 réelles & 29 bâtiments sortis de catégories fantômes \\
+E11 & Encodage binaire $\rightarrow$ one-hot & Supprime des relations numériques arbitraires et un objet à persister \\
+E16 & Saisie des usages alignée sur l'entraînement & Supprime un \emph{train/serve skew} sur 9\% des bâtiments \\
+\bottomrule
+\end{tabularx}
+\caption{Écarts structurants. Journal complet en annexe~\ref{ann:ecarts}.}
+\end{table}
+
+Le journal contient également une seconde table : les constats relevés mais
+\textbf{volontairement non corrigés}. Un écart assumé et documenté vaut mieux
+qu'un écart oublié, et cette table est aussi utile en soutenance que la première.
+
+\newpage

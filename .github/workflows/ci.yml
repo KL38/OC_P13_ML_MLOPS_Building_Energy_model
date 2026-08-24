@@ -94,7 +94,7 @@ jobs:
               ".claude", ".claude/*", "CLAUDE.md",
               ".ruff_cache/*", ".pytest_cache/*", ".vscode/*",
               "__pycache__/*", "*.pyc",
-              "brief/*", "portfolio/*", "notebooks/*",
+              "brief/*", "portfolio/*", "notebooks/*", "rapport/*",
               "mlruns/*", "mlartifacts/*", "mlflow.db",
               "catboost_info/*",
               "emissions.csv", "emissions_base_*.csv",

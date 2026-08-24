@@ -1,0 +1,78 @@
+\section{Annexes}
+\markboth{Annexes}{}
+
+\subsection{Liens du projet}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\linewidth}{@{}L{4.2cm}X@{}}
+\toprule
+\textbf{Livrable} & \textbf{Adresse} \\
+\midrule
+Application en ligne & \url{https://huggingface.co/spaces/KLEB38/OC_P13_seattle_energy_emission_predictions} \\
+Code source & \url{https://github.com/KL38/OC_P13_ML_MLOPS_Building_Energy_model} \\
+Données source & \emph{Seattle Building Energy Benchmarking}, millésime 2016, open data municipal \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Journal des écarts avec la solution auditée}
+\label{ann:ecarts}
+
+Chaque ligne a été écrite \emph{au moment} du changement, jamais reconstituée
+après coup. C'est cette discipline qui rend la section~2 vérifiable.
+
+\begin{small}
+\begin{longtable}{@{}p{0.7cm}p{2.5cm}p{5.2cm}p{5.4cm}@{}}
+\toprule
+\textbf{Réf.} & \textbf{Étape} & \textbf{Changement} & \textbf{Impact attendu} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Réf.} & \textbf{Étape} & \textbf{Changement} & \textbf{Impact attendu} \\
+\midrule
+\endhead
+\midrule
+\multicolumn{4}{r}{\footnotesize\itshape suite page suivante} \\
+\endfoot
+\bottomrule
+\endlastfoot
+
+E01 & Nettoyage & Deux bâtiments reçoivent leurs propres valeurs d'usage au lieu de celles d'un troisième (copier-coller) & Deux observations fausses en moins \\
+E02 & Imputation & Nombre d'étages : 16 valeurs nulles imputées par la médiane calculée (2) au lieu d'une constante codée en dur (4) & Imputation adaptée à une distribution très asymétrique ; se recalcule si les données changent \\
+E03 & Nettoyage & Suppression d'une instruction morte (imputation de valeurs manquantes inexistantes) & Aucun sur les valeurs. Lisibilité \\
+E04 & Périmètre & Le notebook s'arrête au nettoyage et exporte des données \emph{non transformées} & Permet de rejouer la même préparation à l'entraînement et à l'inférence \\
+E05 & Imputation & Nombre de bâtiments : règle conservée, mais justifiée par vérification factuelle plutôt que par proximité à la moyenne & Aucun changement de valeur ; hypothèse défendable en soutenance \\
+E06 & Environnement & \code{pandas} épinglé en 2.3.3, non par préférence mais parce que le registre d'expérimentations borne cette dépendance & Aucun sur les valeurs : les notebooks rejoués donnent des résultats identiques \\
+E07 & Nettoyage & Quartiers : 19 modalités brutes ramenées à 13 quartiers réels (casse et suffixes) & 29 bâtiments sortis de six catégories fantômes de 1 à 9 individus ; 6 colonnes de moins \\
+E08 & \textbf{Fuite de données} & \textbf{Ratios de sources d'énergie remplacés par trois booléens de présence} & \textbf{Écart structurant.} $-10$ points sur les émissions, mais le modèle devient utilisable sur un bâtiment non relevé \\
+E09 & Variable & Âge supprimé, année de construction conservée brute & Aucun sur les métriques (transformation affine). Supprime une dérive annuelle mécanique \\
+E10 & Composition & Parts d'usage normalisées sur la somme des surfaces déclarées, et non sur la surface totale & La couverture réelle allait de 0 à 6,43 ; la composition devient robuste et correspond à ce que l'interface collecte \\
+E11 & Encodage & Quartiers en one-hot (13 colonnes) au lieu d'un encodage binaire (5 colonnes) & Supprime des relations numériques arbitraires entre quartiers et un objet à persister \\
+E12 & Variables écartées & Type principal non retenu ; surface totale réduite à son logarithme ; surface bâtie écartée & Évite 21 colonnes redondantes dont plusieurs à moins de 15 exemples \\
+E13 & Variable testée & Ratio de parking réintroduit pour contester un arbitrage antérieur, puis retiré après mesure & Aucun écart net au final. \textbf{Un arbitrage de la solution auditée confirmé sur preuve} \\
+E14 & Périmètre & Un bâtiment retiré : aucune répartition d'usage déclarée & \num{1655} lignes au lieu de \num{1656}. Point hors domaine qui aurait faussé l'évaluation \\
+E15 & Robustesse & Un usage ou un quartier inconnu lève une exception au lieu de produire une colonne fantôme & En production, un bâtiment mal encodé est pire qu'une prédiction refusée \\
+E16 & Inférence & L'interface collecte les trois usages principaux \emph{et} le nombre total d'usages déclarés & Supprime un écart entraînement / inférence sur les 9\,\% de bâtiments à plus de trois usages \\
+\end{longtable}
+\end{small}
+
+\subsubsection*{Écarts assumés, non corrigés}
+
+Relevés pendant le portage, laissés en l'état après décision. Un écart assumé et
+documenté vaut mieux qu'un écart oublié.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\linewidth}{@{}L{2.6cm}XL{3.4cm}@{}}
+\toprule
+\textbf{Étape} & \textbf{Constat} & \textbf{Décision} \\
+\midrule
+Analyse univariée & Une échelle logarithmique écarte silencieusement les valeurs nulles de trois graphiques : la distribution affichée n'est pas celle des données & Conservé — cosmétique, sans effet sur les données exportées \\
+Composition d'usages & Pour les 9\,\% de bâtiments déclarant plus de trois usages, la composition est calculée sur une répartition tronquée puis renormalisée & Conservé — la source ne publie pas mieux, et l'interface applique désormais la même troncature (E16) \\
+Général & Commentaires de code en français, contrairement à la convention du projet & Conservé pour garder le portage comparable à la solution auditée \\
+\bottomrule
+\end{tabularx}
+\end{table}

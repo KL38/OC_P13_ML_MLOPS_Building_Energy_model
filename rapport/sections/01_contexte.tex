@@ -1,0 +1,122 @@
+\section{Contexte et analyse des besoins}
+\markboth{1. Contexte et analyse des besoins}{}
+
+\subsection{Présentation du contexte}
+
+\subsubsection*{L'organisation et son obligation réglementaire}
+
+La Ville de Seattle impose depuis 2010, par ordonnance municipale, que tout
+bâtiment non résidentiel ou résidentiel collectif de plus de
+\num{20000}~pieds carrés déclare annuellement sa consommation énergétique. Ce
+dispositif, le \emph{Building Energy Benchmarking}, sert un objectif public
+affiché : atteindre la neutralité carbone à l'échelle de la ville. Les données
+collectées sont publiées en open data, millésime par millésime.
+
+Le service porteur — l'\emph{Office of Sustainability \& Environment} — dispose
+donc d'un inventaire déclaratif annuel de plusieurs milliers de bâtiments, avec
+leurs caractéristiques structurelles et leurs consommations relevées.
+
+\subsubsection*{Maturité data et point de départ}
+
+La maturité data de l'organisation est asymétrique, et c'est ce déséquilibre qui
+fonde le besoin.
+
+\begin{itemize}[leftmargin=1.4em,itemsep=0.25em]
+  \item \textbf{Forces} : une collecte structurée, annuelle, avec un référentiel
+        stable de typologies de bâtiments ; une publication en open data qui
+        rend les données auditables.
+  \item \textbf{Faiblesses} : la donnée est \emph{publiée} mais peu
+        \emph{exploitée}. Elle décrit le passé des bâtiments déclarants, et ne
+        dit rien de ceux qui ne déclarent pas — ni de ce qu'il faudrait
+        prioriser.
+\end{itemize}
+
+\begin{constat}{Le point de départ technique}
+Un projet antérieur de modélisation a produit deux modèles de régression sous
+forme de notebooks Jupyter : consommation d'énergie et émissions de gaz à effet
+de serre, à partir des caractéristiques structurelles. Ces notebooks constituent
+\textbf{la solution existante auditée en section~2}. Ils n'ont jamais été
+déployés, ni suivis, ni testés.
+\end{constat}
+
+\subsubsection*{Périmètre de ce rapport}
+
+Ce projet est un projet personnel construit sur des données publiques. Le
+contexte organisationnel décrit ci-dessus est réel — l'ordonnance, le programme
+de benchmarking et les données le sont — mais les parties prenantes n'ont pas été
+interrogées : leurs besoins ont été \textbf{reconstitués} à partir de la
+documentation publique du programme et de la nature même des données publiées.
+Cette limite est assumée et signalée ici plutôt que masquée ; elle est rappelée
+en section~\ref{sec:limites-demarche}.
+
+\subsection{Collecte et analyse du besoin métier}
+
+\subsubsection*{Parties prenantes identifiées}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\linewidth}{@{}L{3.6cm}XL{4.2cm}@{}}
+\toprule
+\textbf{Partie prenante} & \textbf{Attente vis-à-vis de la donnée} & \textbf{Contrainte propre} \\
+\midrule
+Service développement durable & Cibler les bâtiments à auditer en priorité, avec des moyens d'audit finis & Budget d'audit contraint, obligation de justifier le ciblage \\
+Propriétaires et gestionnaires & Situer leur bâtiment par rapport à des bâtiments comparables & Ne disposent pas toujours de relevés exploitables \\
+Bureaux d'études énergétiques & Pré-qualifier un parc avant intervention & Ont besoin d'un ordre de grandeur, pas d'une valeur contractuelle \\
+Citoyens et élus & Transparence sur l'empreinte du parc & Données publiques, donc opposables \\
+\bottomrule
+\end{tabularx}
+\caption{Parties prenantes et attentes reconstituées à partir de la documentation du programme.}
+\end{table}
+
+\subsubsection*{Hiérarchisation des besoins}
+
+Les besoins ont été classés selon deux axes : la valeur pour le service porteur
+et la faisabilité au regard des données réellement disponibles. Ce croisement
+élimine d'emblée les besoins que la donnée ne peut pas servir, quelle que soit
+leur valeur.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\linewidth}{@{}L{5.4cm}C{2.2cm}C{2.4cm}L{3.6cm}@{}}
+\toprule
+\textbf{Besoin} & \textbf{Valeur} & \textbf{Faisabilité} & \textbf{Décision} \\
+\midrule
+Estimer la consommation d'un bâtiment non relevé & Élevée & Élevée & \textbf{Retenu — cœur du projet} \\
+Prioriser les audits sur un parc entier & Élevée & Élevée & \textbf{Retenu} \\
+Quantifier la fiabilité de chaque estimation & Élevée & Moyenne & \textbf{Retenu — différenciant} \\
+Expliquer ce qui porte une estimation & Moyenne & Élevée & Retenu \\
+Prédire l'effet d'une rénovation & Élevée & \textbf{Nulle} & Écarté : aucune variable de rénovation dans les données \\
+Suivre la dérive du parc dans le temps & Moyenne & Faible & Écarté : un millésime annuel, un seul utilisateur \\
+\bottomrule
+\end{tabularx}
+\caption{Matrice de priorisation des besoins.}
+\end{table}
+
+\begin{constat}{Le besoin qui a réorienté tout le projet}
+Estimer la consommation d'un bâtiment \textbf{non relevé} n'est pas une variante
+du problème initial : c'est une contrainte qui interdit d'utiliser toute variable
+dérivée de la consommation. Or la solution existante en utilisait. Ce constat est
+l'origine de l'écart le plus structurant du projet (section~\ref{sec:fuite}).
+\end{constat}
+
+\subsubsection*{Contraintes}
+
+\begin{description}[leftmargin=0em,style=nextline,itemsep=0.35em]
+  \item[Métier] L'outil doit servir la priorisation, pas la facturation. Une
+        estimation à un facteur~2 près est exploitable pour classer, inutilisable
+        pour contractualiser. Cette frontière doit être écrite dans l'interface,
+        pas seulement dans la documentation.
+  \item[Données] Un seul millésime exploité (2016), \num{1655} bâtiments après
+        nettoyage, aucune variable d'usage réel (occupation, horaires,
+        équipements). Le réentraînement est annuel, au rythme de publication.
+  \item[Opérationnelle] Un seul utilisateur métier, pas d'équipe d'exploitation.
+        Toute brique de supervision ajoutée devra être maintenue par cette même
+        personne — ce qui pèse dans les arbitrages de la section~\ref{sec:monitoring}.
+  \item[Réglementaire] Les données sont publiques et les estimations sont
+        opposables. Un chiffre affiché sans sa marge d'erreur serait, dans ce
+        contexte, une information trompeuse.
+\end{description}
+
+\newpage
