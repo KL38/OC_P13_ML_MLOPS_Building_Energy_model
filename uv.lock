@@ -2511,6 +2511,7 @@ dependencies = [
     { name = "scipy" },
     { name = "seaborn" },
     { name = "shap" },
+    { name = "spaces" },
     { name = "tabpfn" },
 ]
 
@@ -2535,6 +2536,7 @@ requires-dist = [
     { name = "scipy", specifier = ">=1.18.0" },
     { name = "seaborn", specifier = ">=0.13.2" },
     { name = "shap", specifier = ">=0.52.0" },
+    { name = "spaces", specifier = "==0.51.1" },
     { name = "tabpfn", specifier = ">=8.4.0" },
 ]
 
@@ -3767,6 +3769,23 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/1f/ea/49c993d6dfdd7338c9b1000a0f36817ed7ec84577ae2e52f890d1a4ff909/smmap-5.0.3.tar.gz", hash = "sha256:4d9debb8b99007ae47165abc08670bd74cb74b5227dda7f643eccc4e9eb5642c", size = 22506, upload-time = "2026-03-09T03:43:26.1Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c1/d4/59e74daffcb57a07668852eeeb6035af9f32cbfd7a1d2511f17d2fe6a738/smmap-5.0.3-py3-none-any.whl", hash = "sha256:c106e05d5a61449cf6ba9a1e650227ecfb141590d2a98412103ff35d89fc7b2f", size = 24390, upload-time = "2026-03-09T03:43:24.361Z" },
+]
+
+[[package]]
+name = "spaces"
+version = "0.51.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "gradio" },
+    { name = "httpx" },
+    { name = "packaging" },
+    { name = "pydantic" },
+    { name = "requests" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/3e/06/dfc7c007d14fa267dea6536aab7d551105185c2fe1ffa1794e096e828896/spaces-0.51.1.tar.gz", hash = "sha256:cfb4249fb7df111792e13ceeba755164bee979f6ddf896e0f9995cb4c2d0322a", size = 88633, upload-time = "2026-07-21T11:52:41.828Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/23/97/942432289883220d760b9c776c5cf503c554da96a9d420ef77b76f3efcaf/spaces-0.51.1-py3-none-any.whl", hash = "sha256:23c4dff37bd4be72f8cb5695591aea0ddee7fe9207f973a6667f8b0ddf8341b7", size = 111637, upload-time = "2026-07-21T11:52:40.192Z" },
 ]
 
 [[package]]
