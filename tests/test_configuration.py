@@ -20,13 +20,17 @@ from tests.conftest import RACINE
 # ZeroGPU accepts these two Python versions and no others.
 PYTHON_ZEROGPU = {"3.12.12", "3.10.13"}
 
-README = (RACINE / "README.md").read_text(encoding="utf-8")
+# The Space card, not the GitHub README. The two were split because GitHub
+# renders YAML front matter as a metadata table: keeping the Space
+# configuration in README.md put ten rows of sdk_version and colorFrom above
+# the project title. `deploy` uploads this file under the name the Hub expects.
+README_HF = (RACINE / "README_hf.md").read_text(encoding="utf-8")
 REQUIREMENTS = (RACINE / "requirements.txt").read_text(encoding="utf-8")
 
 
 def _entete_yaml() -> dict[str, str]:
-    """The Space configuration block at the top of README.md."""
-    bloc = README.split("---")[1]
+    """The Space configuration block at the top of README_hf.md."""
+    bloc = README_HF.split("---")[1]
     return dict(re.findall(r"^(\w+):\s*(.+?)\s*$", bloc, flags=re.MULTILINE))
 
 
