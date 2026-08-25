@@ -1,16 +1,3 @@
----
-title: OC P13 Seattle building Predictor
-emoji: 🏢
-colorFrom: blue
-colorTo: green
-sdk: gradio
-sdk_version: 6.25.0
-python_version: 3.12.12
-app_file: app.py
-pinned: false
-short_description: Consommation et émissions estimées, avec leur fourchette
----
-
 <a id="readme-top"></a>
 
 [![CI][ci-shield]][ci-url]
@@ -35,8 +22,6 @@ short_description: Consommation et émissions estimées, avec leur fourchette
   <a href="rapport/Rapport%20Seattle%20Energy%20Emission%20project.pdf">Project report (FR, 28 p.)</a>
   ·
   <a href="docs/ecarts_vs_P3.md">Decision log</a>
-  ·
-  <a href="https://github.com/KL38/OC_P13_ML_MLOPS_Building_Energy_model/issues">Report a bug</a>
 </p>
 
 </div>
@@ -66,14 +51,21 @@ short_description: Consommation et émissions estimées, avec leur fourchette
     <li><a href="#limitations">Limitations</a></li>
     <li><a href="#roadmap">Roadmap</a></li>
     <li><a href="#license">License</a></li>
-    <li><a href="#contact">Contact</a></li>
-    <li><a href="#acknowledgments">Acknowledgments</a></li>
   </ol>
 </details>
 
 ## About The Project
 
-[![Product screenshot][product-screenshot]][hf-url]
+<div align="center">
+  <a href="https://huggingface.co/spaces/KLEB38/OC_P13_seattle_energy_emission_predictions">
+    <img src="docs/demo.gif" width="900"
+         alt="The app in use: a building typed into the form returns an energy and an emissions estimate with their 75% intervals and the SHAP factors behind them, then a CSV upload returns a ten-building portfolio sorted by decreasing emissions." />
+  </a>
+  <br />
+  <em>One building typed in, then a whole portfolio uploaded. Every estimate carries its 75%
+  interval, and the fleet comes back sorted by decreasing emissions — the order in which to
+  launch audits. <b><a href="https://huggingface.co/spaces/KLEB38/OC_P13_seattle_energy_emission_predictions">Try it live »</a></b></em>
+</div>
 
 Seattle has required every non-residential building over 20,000 sq ft to report its
 annual energy use since 2010. The resulting open dataset describes the buildings that
@@ -112,14 +104,34 @@ has never seen, that interval contains the true value 81% of the time, for a 75%
 problem rather than a modelling defect: among 163 comparable office buildings, energy
 use per square foot ranges from 27 to 91 kBtu — a factor of 3.4 the dataset cannot
 explain. An interval built on that dispersion alone, at the same confidence level, would
-be worth a factor of 2.24 — the same order of magnitude as the model's 2.03. The width
+be worth a factor of 2.24 — the same order of magnitude as the model's 2.02. The width
 is set by the available variables, not by the choice of algorithm.
+
+<div align="center">
+  <img src="rapport/figures/plafond-performance.png" width="760"
+       alt="Panel a: energy intensity spread within groups of buildings the model cannot tell apart, ranging from a factor of 2.9 to 6.8. Panel b: the model's 75 percent interval at factor 2.02 against an irreducible floor of 2.24." />
+  <br />
+  <em><b>Top:</b> buildings the model has no way of distinguishing still consume across a
+  factor of 3 to 7. <b>Bottom:</b> the interval the model produces (2.02) is <b>tighter than
+  the irreducible floor</b> imposed by that dispersion (2.24) — the width is a property of the
+  data, not a modelling failure.</em>
+</div>
 
 **Arbitrations measured, not asserted.** `ParkingRatio`, outlier filtering and
 `ConformalizedQuantileRegressor` were each tested and then dropped on evidence. TabPFN,
 the benchmark's best score, is excluded on two independent grounds: its licence forbids
 production use, and it draws 101× the retained model's energy for two R² points that sit
 inside sampling noise.
+
+<div align="center">
+  <img src="rapport/figures/empreinte-performance.png" width="760"
+       alt="Out-of-fold R-squared against training energy on a logarithmic scale. TabPFN sits top-right, buying two R-squared points for 101 times the energy of the retained models." />
+  <br />
+  <em>What each performance point costs. The retained models sit on the left of a log scale;
+  TabPFN buys its two extra points at <b>101× the training energy</b>. Measured with
+  <a href="https://codecarbon.io/">CodeCarbon</a>, which is what turned an opinion into an
+  arbitration.</em>
+</div>
 
 ### Results
 
@@ -269,14 +281,15 @@ Run the test suite:
 uv run pytest
 ```
 
-The interface has three tabs, in the order the use cases were prioritised:
+The interface has three tabs, named as they appear on screen:
 
-1. **Portfolio** — upload a CSV and get the estimated fleet back, sorted by decreasing
+1. **Bâtiment unique** — a form for one building. It opens the app because it is the
+   quickest way to make the interval tangible: one estimate, its bounds, and the SHAP
+   factors behind it. Usage shares are validated live and must total 100%.
+2. **Portefeuille** — upload a CSV and get the estimated fleet back, sorted by decreasing
    emissions, i.e. in the order in which to launch audits. A concentration bar shows how
-   few buildings carry half the emissions.
-2. **Single building** — a form for one building; the entry point that makes the interval
-   tangible. Usage shares are validated live and must total 100%.
-3. **Model &amp; limits** — what the tool is for, and what it is not for.
+   few buildings carry half the emissions. This is where the business value sits.
+3. **Modèle &amp; limites** — what the tool is for, and what it is not for.
 
 Predictions can also be scripted against the shared core:
 
@@ -365,25 +378,9 @@ Gradio exposes the same entry points as an auto-generated REST API on the Space.
 
 ## License
 
-No licence file is currently attached to this repository, which means default copyright
-applies. The underlying data is published by the City of Seattle as municipal open data.
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-## Contact
-
-Kevin Lebayle — [GitHub][github-url] · [Hugging Face](https://huggingface.co/KLEB38)
-
-Project link: [github.com/KL38/OC_P13_ML_MLOPS_Building_Energy_model][repo-url]
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-## Acknowledgments
-
-* [City of Seattle — Building Energy Benchmarking](https://data.seattle.gov/) for the open data
-* [MAPIE](https://mapie.readthedocs.io/) for a conformal prediction API that stays readable
-* [CodeCarbon](https://codecarbon.io/) for making the energy arbitration measurable
-* [Best-README-Template](https://github.com/othneildrew/Best-README-Template) for the structure of this file
+Code released under the [MIT License](LICENSE). The underlying data is published by the
+[City of Seattle](https://data.seattle.gov/) as municipal open data, and the model
+artefacts in `models/` are covered by the same licence as the code.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -395,10 +392,6 @@ Project link: [github.com/KL38/OC_P13_ML_MLOPS_Building_Energy_model][repo-url]
 [python-shield]: https://img.shields.io/badge/Python-3.12-3776AB?style=for-the-badge&logo=python&logoColor=white
 [uv-shield]: https://img.shields.io/badge/uv-managed-DE5FE9?style=for-the-badge&logo=uv&logoColor=white
 [tests-shield]: https://img.shields.io/badge/tests-61%20passing-2A78D6?style=for-the-badge
-[issues-url]: https://github.com/KL38/OC_P13_ML_MLOPS_Building_Energy_model/issues
-[repo-url]: https://github.com/KL38/OC_P13_ML_MLOPS_Building_Energy_model
-[github-url]: https://github.com/KL38
-[product-screenshot]: https://raw.githubusercontent.com/KL38/OC_P13_ML_MLOPS_Building_Energy_model/main/rapport/figures/app-batiment-resultats.png
 
 [python-badge]: https://img.shields.io/badge/Python-3776AB?style=flat-square&logo=python&logoColor=white
 [python-url]: https://www.python.org/

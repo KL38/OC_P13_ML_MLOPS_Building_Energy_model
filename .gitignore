@@ -17,6 +17,11 @@ portfolio/
 brief/
 .claude/
 
+# Consignes projet destinees a l'assistant, et reglages d'editeur : outillage
+# personnel, sans interet pour un lecteur du depot.
+CLAUDE.md
+.vscode/
+
 # --- Sorties regenerables ---------------------------------------------------
 
 # CodeCarbon. `emissions.csv` agrege les runs, `emissions_base_<uuid>.csv`
@@ -73,3 +78,7 @@ rapport/apercu/
 # Archives d'envoi vers Overleaf : regenerables a partir du dossier lui-meme.
 rapport/old/
 rapport/*.zip
+
+# Captures ecran brutes de l'application : seul le GIF exporte est versionne.
+*.webm
+*.mp4

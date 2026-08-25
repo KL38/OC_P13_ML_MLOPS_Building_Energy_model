@@ -94,7 +94,9 @@ jobs:
               ".claude", ".claude/*", "CLAUDE.md",
               ".ruff_cache/*", ".pytest_cache/*", ".vscode/*",
               "__pycache__/*", "*.pyc",
-              "brief/*", "portfolio/*", "notebooks/*", "rapport/*",
+              # docs/ holds the technical notes and the README's demo GIF --
+              # read on GitHub, never by the running app.
+              "brief/*", "portfolio/*", "notebooks/*", "rapport/*", "docs/*",
               "mlruns/*", "mlartifacts/*", "mlflow.db",
               "catboost_info/*",
               "emissions.csv", "emissions_base_*.csv",
@@ -102,6 +104,9 @@ jobs:
               "tests/*",
               "data/2016.csv", "data/dfclean.csv",
               "uv.lock", "pyproject.toml",
+              # Both READMEs are excluded here and the Space card is uploaded
+              # separately below.
+              "README.md", "README_hf.md",
           ]
 
           api.upload_folder(
@@ -110,5 +115,18 @@ jobs:
               repo_type="space",
               ignore_patterns=IGNORER,
               commit_message="Déploiement depuis GitHub Actions",
+          )
+
+          # The Space card and the GitHub README are two different documents.
+          # The card carries the YAML front matter that configures the Space --
+          # which GitHub renders as a metadata table at the top of the page --
+          # and stays short, demo-facing. README_hf.md is therefore uploaded
+          # under the name the Hub expects.
+          api.upload_file(
+              path_or_fileobj="README_hf.md",
+              path_in_repo="README.md",
+              repo_id=os.environ["SPACE_ID"],
+              repo_type="space",
+              commit_message="Mise a jour de la Space card",
           )
           EOF

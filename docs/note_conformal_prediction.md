@@ -132,7 +132,7 @@ intervalle 75 %    : 1 259 000 – 5 155 000     <- vrai trois fois sur quatre
 L'intervalle est plus large que l'erreur typique, et c'est mécanique : il ne décrit
 pas le cas courant, il doit **englober aussi les cas défavorables**. Plus le niveau
 de confiance monte, plus loin dans la queue il faut aller — d'où un intervalle qui
-s'élargit vite : 2,03 à 75 %, 2,98 à 90 %, 3,97 à 95 %.
+s'élargit vite : 2,02 à 75 %, 2,98 à 90 %, 3,97 à 95 %.
 
 Les deux se citent ensemble et se complètent : *« l'estimation est typiquement
 juste à ±35 %, et l'intervalle affiché contient la vraie valeur 3 fois sur 4 »*.
