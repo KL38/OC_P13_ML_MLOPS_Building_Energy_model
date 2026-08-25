@@ -9,7 +9,7 @@ que le modèle est médiocre.
 
 ## Le constat qui dérange
 
-Le modèle retenu produit des intervalles à 75 % d'un facteur **2,03** : la vraie
+Le modèle retenu produit des intervalles à 75 % d'un facteur **2,02** : la vraie
 consommation se situe entre la moitié et le double de la prédiction.
 Le bâtiment typique est estimé à ±35 %, et un bâtiment sur dix est faux d'un
 facteur 2 ou plus.
@@ -43,7 +43,7 @@ pied carré.** Le modèle ne dispose d'aucune variable pour les départager.
 Un intervalle **au même niveau de confiance**, construit sur cette seule dispersion
 irréductible, vaudrait `exp(1,150 × 0,699)`, soit un facteur **2,24**.
 
-L'intervalle effectivement produit par le modèle vaut **2,03**.
+L'intervalle effectivement produit par le modèle vaut **2,02**.
 
 (La comparaison se fait à niveau de confiance égal. À 90 %, le plancher serait de
 3,16 et le modèle produirait 2,98 — l'écart relatif est le même.)
