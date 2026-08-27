@@ -66,7 +66,7 @@
   interval, and the fleet comes back sorted by decreasing emissions — the order in which to
   launch audits. <b><a href="https://huggingface.co/spaces/KLEB38/OC_P13_seattle_energy_emission_predictions">Try it live »</a></b></em>
 </div>
-
+<br />
 Seattle has required every non-residential building over 20,000 sq ft to report its
 annual energy use since 2010. The resulting open dataset describes the buildings that
 *do* report — and says nothing about the ones that don't, nor about which of them a
@@ -116,6 +116,7 @@ is set by the available variables, not by the choice of algorithm.
   the irreducible floor</b> imposed by that dispersion (2.24) — the width is a property of the
   data, not a modelling failure.</em>
 </div>
+<br />
 
 **Arbitrations measured, not asserted.** `ParkingRatio`, outlier filtering and
 `ConformalizedQuantileRegressor` were each tested and then dropped on evidence. TabPFN,
