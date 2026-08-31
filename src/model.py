@@ -16,14 +16,28 @@ drifts up to 0.23 in log space, about 26% once exponentiated.
 from __future__ import annotations
 
 import json
+import os
+import pickle
+import zlib
 from functools import lru_cache
 from pathlib import Path
 
 import joblib
 import numpy as np
 import pandas as pd
+from huggingface_hub import hf_hub_download
 
 MODELS_DIR = Path(__file__).resolve().parent.parent / "models"
+
+# HF Spaces have, on at least two occasions, shipped a container whose git
+# checkout left a Git-LFS/Xet pointer on disk instead of the real artefact --
+# a platform-side build issue (confirmed via the Hub's own /resolve/ endpoint
+# serving the real file while the checked-out copy did not), not a local one.
+# SPACE_ID is injected automatically at runtime inside the Space; the literal
+# is only used as a fallback when running elsewhere.
+SPACE_ID = os.environ.get(
+    "SPACE_ID", "KLEB38/OC_P13_seattle_energy_emission_predictions"
+)
 
 # Business units of each target, for labelling. Seattle publishes site energy in
 # kBtu and greenhouse gases in metric tons of CO2 equivalent.
@@ -39,10 +53,28 @@ def load() -> tuple[dict, dict]:
     """(models by target, metadata). Read once, then served from cache."""
     metadata = json.loads((MODELS_DIR / "metadata.json").read_text(encoding="utf-8"))
     models = {
-        target: joblib.load(MODELS_DIR / spec["fichier"])
+        target: _load_artefact(spec["fichier"])
         for target, spec in metadata["modeles"].items()
     }
     return models, metadata
+
+
+def _load_artefact(fichier: str):
+    """Load one joblib artefact, falling back to a fresh Hub download.
+
+    Works around HF Space builds that leave a Git-LFS/Xet pointer unresolved on
+    disk instead of the real binary -- confirmed a platform-side issue since the
+    Hub's own /resolve/ endpoint serves the real file when the checked-out copy
+    does not. joblib.load then fails on the pointer's text, at which point
+    downloading straight from the Hub bypasses the broken build step entirely.
+    """
+    try:
+        return joblib.load(MODELS_DIR / fichier)
+    except (KeyError, EOFError, ValueError, pickle.UnpicklingError, zlib.error):
+        chemin = hf_hub_download(
+            repo_id=SPACE_ID, repo_type="space", filename=f"models/{fichier}"
+        )
+        return joblib.load(chemin)
 
 
 def predict(X: pd.DataFrame) -> pd.DataFrame:

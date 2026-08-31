@@ -12,6 +12,10 @@ gradio==6.25.0
 # decoree @spaces.GPU. Version alignee sur celle que le constructeur du Space
 # installe lui-meme, pour eviter un conflit de resolution au build.
 spaces==0.51.1
+# Import direct dans src/model.py (secours de chargement des artefacts) :
+# declare explicitement plutot que de compter sur la dependance transitive de
+# gradio. Version alignee sur celle deja resolue dans l'environnement local.
+huggingface-hub==1.28.0
 
 scikit-learn==1.9.0
 catboost==1.2.10
